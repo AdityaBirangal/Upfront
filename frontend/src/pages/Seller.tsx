@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { Link } from 'react-router'
+import ReceivableCard from '../components/ReceivableCard.tsx'
 import { documentProblem, hashDocument } from '../receivables.ts'
 import type { Receivable } from '../receivables.ts'
 import { WALLET_ADDRESS } from '../roles.ts'
@@ -79,7 +80,10 @@ function Seller({ assignments, receivables, onChange }: Props) {
     }
     if (!(due > Date.now())) return 'Choose a due date in the future.'
     if (!docHash) return 'Choose the agreement PDF.'
-    if (receivables.some((r) => r.docHash === docHash)) {
+    const documentInUse = receivables.some(
+      (r) => r.docHash === docHash && r.status !== 'Rejected',
+    )
+    if (documentInUse) {
       return 'This document is already used by another receivable.'
     }
     return null
@@ -207,27 +211,7 @@ function Seller({ assignments, receivables, onChange }: Props) {
       ) : (
         <ul className="receivable-list">
           {receivables.map((receivable) => (
-            <li key={receivable.id} className="receivable">
-              <div className="receivable-head">
-                <strong>{receivable.ref}</strong>
-                <span>{receivable.status}</span>
-              </div>
-              <p>
-                {receivable.faceValue.toLocaleString()} USDT ·{' '}
-                {receivable.faceValue.toLocaleString()}{' '}
-                {receivable.faceValue === 1 ? 'unit' : 'units'} · Due{' '}
-                {new Date(receivable.dueDate * 1000).toLocaleString([], {
-                  dateStyle: 'medium',
-                  timeStyle: 'short',
-                })}
-              </p>
-              <p>
-                Buyer: <code className="address">{receivable.buyer}</code>
-              </p>
-              <p>
-                Document: <code className="address">{receivable.docHash}</code>
-              </p>
-            </li>
+            <ReceivableCard key={receivable.id} receivable={receivable} />
           ))}
         </ul>
       )}

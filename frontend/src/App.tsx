@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Route, Routes } from 'react-router'
 import AdminRoles from './pages/AdminRoles.tsx'
+import Buyer from './pages/Buyer.tsx'
 import Home from './pages/Home.tsx'
 import RoleSelect from './pages/RoleSelect.tsx'
 import Seller from './pages/Seller.tsx'
@@ -30,6 +31,12 @@ function App() {
             receivables={receivables}
             onChange={setReceivables}
           />
+        }
+      />
+      <Route
+        path="/app/buyer"
+        element={
+          <Buyer receivables={receivables} onChange={setReceivables} />
         }
       />
     </Routes>

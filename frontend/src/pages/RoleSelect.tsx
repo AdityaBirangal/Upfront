@@ -4,6 +4,7 @@ import type { Role } from '../roles.ts'
 
 const ROLE_PAGES: Partial<Record<Role, string>> = {
   Admin: '/app/admin',
+  Buyer: '/app/buyer',
   Seller: '/app/seller',
 }
 

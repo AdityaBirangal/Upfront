@@ -33,6 +33,11 @@ body {
   cursor: pointer;
 }
 
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .panel {
   max-width: 720px;
   margin: 0 auto;
@@ -131,6 +136,12 @@ body {
 
 .receivable p {
   margin: 8px 0 0;
+}
+
+.receivable-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
 }
 
 .receivable-head {

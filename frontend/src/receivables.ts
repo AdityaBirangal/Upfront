@@ -5,7 +5,7 @@ export type Receivable = {
   faceValue: number // whole USDT; 1 unit = 1 USDT
   dueDate: number // unix seconds
   docHash: string
-  status: 'Created'
+  status: 'Created' | 'Accepted' | 'Rejected'
 }
 
 const MAX_DOCUMENT_BYTES = 5 * 1024 * 1024
