@@ -1,7 +1,6 @@
 export interface DocumentMeta {
   size: number;
   uploadedAt: string;
-  uploader: string | null; // set from V2, when uploads are signed
 }
 
 // Abstract class rather than interface, so it can also be the Nest injection token.

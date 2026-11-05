@@ -1,33 +1,45 @@
 import {
-  Body,
   Controller,
   Get,
+  HttpException,
   HttpStatus,
   Param,
-  Post,
+  Put,
+  Req,
   Res,
   StreamableFile,
-  UploadedFile,
-  UseInterceptors,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import { DocumentsService } from './documents.service.js';
+
+// Cloud Functions reads the body before Express and leaves it in rawBody.
+// Locally, the raw body parser from configureApp puts a Buffer in body.
+function bodyBytes(request: Request): Buffer | undefined {
+  const { rawBody } = request as Request & { rawBody?: unknown };
+  if (Buffer.isBuffer(rawBody)) return rawBody;
+  return Buffer.isBuffer(request.body) ? request.body : undefined;
+}
 
 @Controller('documents')
 export class DocumentsController {
   constructor(private readonly documents: DocumentsService) {}
 
-  @Post()
-  @UseInterceptors(FileInterceptor('file'))
+  // The body is the raw PDF. Multipart doesn't work on Cloud Functions.
+  @Put(':hash')
   async upload(
-    @UploadedFile() file: Express.Multer.File | undefined,
-    @Body() body: { hash?: unknown } | undefined,
+    @Param('hash') hash: string,
+    @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ) {
+    if (!request.is('application/pdf')) {
+      throw new HttpException(
+        { error: 'not_pdf' },
+        HttpStatus.UNSUPPORTED_MEDIA_TYPE,
+      );
+    }
     const { created, document } = await this.documents.upload(
-      body?.hash,
-      file?.buffer,
+      hash,
+      bodyBytes(request),
     );
     response.status(created ? HttpStatus.CREATED : HttpStatus.OK);
     return document;

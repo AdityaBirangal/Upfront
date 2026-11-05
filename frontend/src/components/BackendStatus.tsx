@@ -2,7 +2,8 @@ import { useQuery } from '@tanstack/react-query'
 import { BACKEND_URL } from '../backend.ts'
 
 const CHECK_EVERY_MS = 30_000
-const TIMEOUT_MS = 5_000
+// Long enough for a Cloud Functions cold start, which boots Nest first.
+const TIMEOUT_MS = 15_000
 
 async function fetchHealth() {
   const response = await fetch(`${BACKEND_URL}/health`, {

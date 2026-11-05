@@ -3,7 +3,7 @@ import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Test } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module.js';
@@ -21,16 +21,16 @@ const sha256 = (bytes: Buffer) =>
   `0x${createHash('sha256').update(bytes).digest('hex')}`;
 
 describe('Backend (e2e)', () => {
-  let app: INestApplication<App>;
+  let app: NestExpressApplication<App>;
   let dataDir: string;
   let pdf: Buffer;
 
   const server = () => app.getHttpServer();
-  const upload = (bytes: Buffer, hash: string, filename = 'agreement.pdf') =>
+  const upload = (bytes: Buffer, hash: string) =>
     request(server())
-      .post('/documents')
-      .field('hash', hash)
-      .attach('file', bytes, { filename, contentType: 'application/pdf' });
+      .put(`/documents/${hash}`)
+      .set('Content-Type', 'application/pdf')
+      .send(bytes);
 
   beforeEach(async () => {
     pdf = await readFile(SAMPLE_PDF);
@@ -47,7 +47,7 @@ describe('Backend (e2e)', () => {
       imports: [AppModule],
     }).compile();
 
-    app = moduleRef.createNestApplication();
+    app = moduleRef.createNestApplication<NestExpressApplication>();
     configureApp(app);
     await app.init();
   });
@@ -135,7 +135,6 @@ describe('Backend (e2e)', () => {
       expect(meta).toEqual({
         size: pdf.length,
         uploadedAt: expect.any(String),
-        uploader: null,
       });
     });
 
@@ -158,11 +157,11 @@ describe('Backend (e2e)', () => {
       await upload(text, sha256(text)).expect(415).expect({ error: 'not_pdf' });
     });
 
-    it('rejects an empty file as not a PDF', async () => {
+    it('rejects an empty body as missing_file', async () => {
       const empty = Buffer.alloc(0);
       await upload(empty, sha256(empty))
-        .expect(415)
-        .expect({ error: 'not_pdf' });
+        .expect(400)
+        .expect({ error: 'missing_file' });
     });
 
     it('rejects an oversized file with too_large', async () => {
@@ -185,39 +184,39 @@ describe('Backend (e2e)', () => {
       ['no prefix', 'ab'.repeat(32)],
       ['uppercase', `0x${'AB'.repeat(32)}`],
       ['too short', '0xabcd'],
-      ['traversal', `0x${'ab'.repeat(31)}/.`],
+      ['encoded traversal', '..%2F..%2Fpackage.json'],
     ])('rejects an upload with an invalid hash: %s', async (_name, hash) => {
       await upload(pdf, hash).expect(400).expect({ error: 'invalid_hash' });
     });
 
-    it('rejects an upload with no hash', async () => {
+    it('rejects an upload with no body', async () => {
       await request(server())
-        .post('/documents')
-        .attach('file', pdf, 'agreement.pdf')
-        .expect(400)
-        .expect({ error: 'invalid_hash' });
-    });
-
-    it('rejects an upload with no file', async () => {
-      await request(server())
-        .post('/documents')
-        .field('hash', sha256(pdf))
+        .put(`/documents/${sha256(pdf)}`)
+        .set('Content-Type', 'application/pdf')
         .expect(400)
         .expect({ error: 'missing_file' });
     });
 
-    it('rejects a file sent under the wrong field name', async () => {
+    it('rejects a body sent with the wrong content type', async () => {
       await request(server())
-        .post('/documents')
-        .field('hash', sha256(pdf))
-        .attach('other', pdf, 'agreement.pdf')
-        .expect(400)
-        .expect({ error: 'bad_request' });
+        .put(`/documents/${sha256(pdf)}`)
+        .set('Content-Type', 'application/octet-stream')
+        .send(pdf)
+        .expect(415)
+        .expect({ error: 'not_pdf' });
+    });
+
+    it('rejects a multipart upload', async () => {
+      await request(server())
+        .put(`/documents/${sha256(pdf)}`)
+        .attach('file', pdf, 'agreement.pdf')
+        .expect(415)
+        .expect({ error: 'not_pdf' });
     });
 
     it('rejects malformed JSON in the plan error shape', async () => {
       await request(server())
-        .post('/documents')
+        .put(`/documents/${sha256(pdf)}`)
         .set('Content-Type', 'application/json')
         .send('{oops')
         .expect(400)

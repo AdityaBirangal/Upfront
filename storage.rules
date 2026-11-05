@@ -1,0 +1,11 @@
+rules_version = '2';
+
+// Only the backend (Admin SDK, which bypasses these rules) reads and writes
+// documents. Browsers download through the backend's GET /documents/:hash.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
