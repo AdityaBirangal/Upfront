@@ -1,32 +1,102 @@
-# React + TypeScript + Vite
+# Upfront frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+The web app for Upfront: businesses get paid early, investors get paid more. A seller turns a
+receivable into units, the buyer approves it, and investors buy the units at a discount.
 
-Currently, two official plugins are available:
+Wallet connection is real. Everything else runs in the browser: roles, receivables, and holdings
+are kept in memory, so **a refresh clears them**. The app isn't connected to smart contracts or a
+backend, so no transactions are sent, no USDT moves, and PDFs aren't uploaded.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Getting started
 
-## React Compiler
+You need Node and a browser wallet such as MetaMask.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm install
+cp .env.example .env
+npm run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+| Variable | Meaning |
+|---|---|
+| `VITE_CHAIN_ID` | `31337` for local Anvil, or `1874` for Whitechain Sepolia (the default when unset) |
+| `VITE_RPC_URL` | RPC address. Leave it unset to use the chain's public RPC |
+
+| Command | Does |
+|---|---|
+| `npm run dev` | Starts the dev server |
+| `npm run build` | Type checks and builds to `dist/` |
+| `npm run lint` | Runs oxlint |
+| `npm run preview` | Serves the production build |
+
+## Pages
+
+| Route | For | What you can do |
+|---|---|---|
+| `/` | Everyone | Open the app |
+| `/app` | Everyone | Choose a role |
+| `/app/admin` | Any wallet | Assign roles to wallets, and revoke them |
+| `/app/seller` | Seller | Create receivables and list accepted ones |
+| `/app/buyer` | Buyer | Accept or reject receivables |
+| `/app/invest` | Investor | Buy units and see your portfolio |
+
+The seller, buyer, and investor pages only open for a connected wallet that holds that role. The
+header shows the connected wallet and warns if it's on the wrong network, with a button to switch.
+
+## Try the full flow
+
+Use at least two wallet accounts, because a buyer can't invest in their own receivable. Switch
+accounts in the wallet and use the on-page links, because a refresh or a typed URL clears the data.
+
+1. **Admin:** connect a wallet, then assign the Seller, Buyer, and Investor roles.
+2. **Seller:** create a receivable for the buyer's wallet. **Use sample PDF** attaches a test
+   document.
+3. **Buyer:** accept the receivable.
+4. **Seller:** enter a discount and investor cap under the accepted receivable, then click **List**.
+5. **Investor:** buy units in the marketplace, and check them in the portfolio.
+
+A receivable moves through these statuses:
+
+```text
+Created ──> Accepted ──> Listed ──> Funded
+   └──────> Rejected
+```
+
+## Rules the app applies
+
+- **Units:** 1 unit is 1 USDT, so a 10 USDT receivable has 10 units. Amounts are whole numbers.
+- **Documents:** the PDF must be 5 MB or smaller. Its SHA-256 hash is computed in the browser, and
+  only the hash is kept. A document can't be used twice unless its receivable was rejected.
+- **Buyers:** the buyer's wallet must hold the Buyer role.
+- **Due dates:** must be in the future. After the due date, a receivable can't be accepted, listed,
+  or bought.
+- **Pricing:** unit price is 1 USDT minus the discount. A 3% discount gives 0.97 USDT per unit.
+- **Investor cap:** the most units one wallet can hold of a receivable.
+
+## Known limits
+
+- The admin page is open to every wallet.
+- The buyer page and **My receivables** show all receivables, not only the connected wallet's.
+- A seller can invest in their own receivable, because the seller's wallet isn't saved.
+- A seller can't cancel a receivable, and the buyer can't open the PDF.
+
+## Code layout
+
+```text
+public/sample-agreement.pdf   Test document for the seller form
+src/
+  App.tsx                     Routes and all shared in-memory state
+  wagmi.ts                    Wallet and chain setup
+  roles.ts                    Roles and role checks
+  receivables.ts              Types, PDF checks, hashing, price math
+  useNow.ts                   Clock that updates every second
+  pages/                      One file per route
+  components/
+    WalletBar.tsx             Header with wallet and network controls
+    RequireRole.tsx           Blocks a page if the wallet lacks the role
+    ReceivableCard.tsx        Receivable details, used on every role page
+    ListForm.tsx              Seller's discount and cap form
+    BuyForm.tsx               Investor's buy form
+```
+
+Built with Vite, React, TypeScript, react-router, wagmi, viem, and TanStack Query.

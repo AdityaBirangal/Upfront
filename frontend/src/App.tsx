@@ -1,121 +1,77 @@
 import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { Route, Routes } from 'react-router'
+import RequireRole from './components/RequireRole.tsx'
+import WalletBar from './components/WalletBar.tsx'
+import AdminRoles from './pages/AdminRoles.tsx'
+import Buyer from './pages/Buyer.tsx'
+import Home from './pages/Home.tsx'
+import Invest from './pages/Invest.tsx'
+import RoleSelect from './pages/RoleSelect.tsx'
+import Seller from './pages/Seller.tsx'
+import type { Holding, Receivable } from './receivables.ts'
+import type { Assignment } from './roles.ts'
 
 function App() {
-  const [count, setCount] = useState(0)
+  // Client-side only for now: a refresh clears these. Moves to a smart contract later.
+  const [assignments, setAssignments] = useState<Assignment[]>([])
+  const [receivables, setReceivables] = useState<Receivable[]>([])
+  const [holdings, setHoldings] = useState<Holding[]>([])
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+    <div className="app-shell">
+      <WalletBar />
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/app" element={<RoleSelect />} />
+        {/* Open to every wallet for now, so anyone can assign the first roles. */}
+        <Route
+          path="/app/admin"
+          element={
+            <AdminRoles assignments={assignments} onChange={setAssignments} />
+          }
+        />
+        <Route
+          path="/app/seller"
+          element={
+            <RequireRole role="Seller" assignments={assignments}>
+              {() => (
+                <Seller
+                  assignments={assignments}
+                  receivables={receivables}
+                  onChange={setReceivables}
+                />
+              )}
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/app/buyer"
+          element={
+            <RequireRole role="Buyer" assignments={assignments}>
+              {() => (
+                <Buyer receivables={receivables} onChange={setReceivables} />
+              )}
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/app/invest"
+          element={
+            <RequireRole role="Investor" assignments={assignments}>
+              {(wallet) => (
+                <Invest
+                  wallet={wallet}
+                  receivables={receivables}
+                  holdings={holdings}
+                  onReceivablesChange={setReceivables}
+                  onHoldingsChange={setHoldings}
+                />
+              )}
+            </RequireRole>
+          }
+        />
+      </Routes>
+    </div>
   )
 }
 
