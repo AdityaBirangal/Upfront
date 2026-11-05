@@ -1,22 +1,19 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { AppController } from './app.controller.js';
-import { AppService } from './app.service.js';
+import { ChainService } from './chain/chain.service.js';
 
 describe('AppController', () => {
-  let appController: AppController;
+  it('reports healthy with the chain status', async () => {
+    const status = {
+      chainId: 31337,
+      upfront: null,
+      upfrontVersion: null,
+      accessVersion: null,
+    };
+    const chain = { status: async () => status } as unknown as ChainService;
 
-  beforeEach(async () => {
-    const app: TestingModule = await Test.createTestingModule({
-      controllers: [AppController],
-      providers: [AppService],
-    }).compile();
-
-    appController = app.get<AppController>(AppController);
-  });
-
-  describe('root', () => {
-    it('should return "Hello World!"', () => {
-      expect(appController.getHello()).toBe('Hello World!');
+    await expect(new AppController(chain).health()).resolves.toEqual({
+      ok: true,
+      ...status,
     });
   });
 });
