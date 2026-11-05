@@ -1,10 +1,10 @@
 import type { ContractFunctionReturnType, Hex } from 'viem'
 import { upfrontAbi } from './generated/abis.ts'
 
+// Matched by position with the contract's Status enum, so the order must stay the same.
 export const STATUSES = [
   'None',
   'Created',
-  'Accepted',
   'Listed',
   'Funded',
   'Settled',
@@ -28,6 +28,27 @@ export type Receivable = Omit<ChainReceivable, 'status'> & {
 
 export function toReceivable(id: bigint, data: ChainReceivable): Receivable {
   return { ...data, id, status: STATUSES[data.status] ?? 'None' }
+}
+
+const nowSeconds = () => BigInt(Math.floor(Date.now() / 1000))
+
+/** Same rules as verifyReceivable: open, before the due date, and not verified yet. */
+export function canVerify(r: Receivable): boolean {
+  return (
+    (r.status === 'Created' || r.status === 'Listed' || r.status === 'Funded') &&
+    !r.verified &&
+    nowSeconds() < r.dueDate
+  )
+}
+
+/** Same rules as cancelReceivable: Created or Listed, with no units sold. */
+export function canCancel(r: Receivable): boolean {
+  return (r.status === 'Created' || r.status === 'Listed') && r.unitsSold === 0n
+}
+
+/** Same rules as rejectReceivable: cancellable, and not verified. */
+export function canReject(r: Receivable): boolean {
+  return canCancel(r) && !r.verified
 }
 
 export const WHOLE_NUMBER = /^[1-9]\d*$/

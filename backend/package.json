@@ -19,13 +19,17 @@
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",
     "test:debug": "vitest --inspect-brk --no-file-parallelism",
-    "test:e2e": "vitest run --config ./vitest.config.e2e.ts"
+    "test:e2e": "vitest run --config ./vitest.config.e2e.ts",
+    "gcp-build": ""
   },
   "dependencies": {
     "@nestjs/common": "^12.0.1",
     "@nestjs/config": "^12.1.0",
     "@nestjs/core": "^12.0.1",
     "@nestjs/platform-express": "^12.0.1",
+    "express": "^5.3.0",
+    "firebase-admin": "^14.5.0",
+    "firebase-functions": "^7.4.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "viem": "^2.57.16"
@@ -36,7 +40,6 @@
     "@nestjs/schematics": "^12.0.0",
     "@nestjs/testing": "^12.0.1",
     "@types/express": "^5.0.0",
-    "@types/multer": "^2.3.0",
     "@types/node": "^24.0.0",
     "@types/supertest": "^7.0.0",
     "@vitest/coverage-v8": "^4.1.2",
@@ -47,5 +50,9 @@
     "typescript": "^6.0.2",
     "vite-tsconfig-paths": "^5.1.4",
     "vitest": "^4.1.2"
+  },
+  "main": "dist/firebase.js",
+  "engines": {
+    "node": "22"
   }
 }

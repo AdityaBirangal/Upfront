@@ -5,12 +5,18 @@ import { getAddress, isAddressEqual } from 'viem'
 import type { Address, Hex } from 'viem'
 import { useReadContract } from 'wagmi'
 import { readContract, simulateContract, writeContract } from 'wagmi/actions'
+import ReceivableActions from '../components/ReceivableActions.tsx'
 import ReceivableList from '../components/ReceivableList.tsx'
 import TxStatus from '../components/TxStatus.tsx'
 import { BACKEND_URL, uploadDocument } from '../backend.ts'
 import { useReceivables } from '../chain.ts'
 import { ROLE_IDS, access, upfront } from '../contracts.ts'
-import { WHOLE_NUMBER, documentProblem, hashDocument } from '../receivables.ts'
+import {
+  WHOLE_NUMBER,
+  canCancel,
+  documentProblem,
+  hashDocument,
+} from '../receivables.ts'
 import { WALLET_ADDRESS } from '../roles.ts'
 import { useTx } from '../tx.ts'
 import { config } from '../wagmi.ts'
@@ -312,6 +318,23 @@ function Seller({ wallet }: Props) {
         isPending={isPending}
         isError={isError}
         empty="This wallet hasn't created any receivables yet."
+        extra={(receivable) => (
+          <ReceivableActions
+            id={receivable.id}
+            actions={
+              canCancel(receivable)
+                ? [
+                    {
+                      label: 'Cancel',
+                      functionName: 'cancelReceivable',
+                      done: 'Cancelled. The document can back a new receivable.',
+                      confirm: `Cancel receivable #${receivable.id}? This can't be undone, but you can create it again with the same PDF.`,
+                    },
+                  ]
+                : []
+            }
+          />
+        )}
       />
     </main>
   )

@@ -21,13 +21,13 @@ export async function uploadDocument(
 ): Promise<string | null> {
   if (!BACKEND_URL) return 'The backend address is not set (VITE_BACKEND_URL).'
 
-  const body = new FormData()
-  body.append('hash', hash)
-  body.append('file', file)
   try {
-    const response = await fetch(`${BACKEND_URL}/documents`, {
-      method: 'POST',
-      body,
+    // The body is the raw PDF. The backend runs on Cloud Functions, where
+    // multipart uploads don't work.
+    const response = await fetch(documentUrl(hash), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/pdf' },
+      body: file,
     })
     if (response.ok) return null
     const { error } = (await response.json().catch(() => ({}))) as {
