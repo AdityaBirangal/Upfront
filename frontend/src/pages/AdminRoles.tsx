@@ -1,10 +1,8 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link } from 'react-router'
-import { ROLES } from '../roles.ts'
+import { ROLES, WALLET_ADDRESS } from '../roles.ts'
 import type { Assignment, Role } from '../roles.ts'
-
-const WALLET_ADDRESS = /^0x[0-9a-fA-F]{40}$/
 
 type Props = {
   assignments: Assignment[]
@@ -44,7 +42,7 @@ function AdminRoles({ assignments, onChange }: Props) {
   }
 
   return (
-    <main className="admin">
+    <main className="panel">
       <Link to="/app" className="back-link">
         ← Back
       </Link>

@@ -33,7 +33,7 @@ body {
   cursor: pointer;
 }
 
-.admin {
+.panel {
   max-width: 720px;
   margin: 0 auto;
   padding: 32px 16px;
@@ -90,7 +90,58 @@ body {
   overflow-wrap: anywhere;
 }
 
+.input[type='file'] {
+  height: auto;
+}
+
+.create-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.field-wide {
+  grid-column: 1 / -1;
+}
+
+.file-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+}
+
+.doc-hash {
+  margin: 0;
+}
+
+.receivable-list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.receivable {
+  padding: 16px;
+  border: 1px solid currentColor;
+  border-radius: 8px;
+}
+
+.receivable p {
+  margin: 8px 0 0;
+}
+
+.receivable-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 @media (max-width: 560px) {
+  .file-row,
+  .create-form,
   .assign-form,
   .assignment {
     grid-template-columns: minmax(0, 1fr);

@@ -3,11 +3,14 @@ import { Route, Routes } from 'react-router'
 import AdminRoles from './pages/AdminRoles.tsx'
 import Home from './pages/Home.tsx'
 import RoleSelect from './pages/RoleSelect.tsx'
+import Seller from './pages/Seller.tsx'
+import type { Receivable } from './receivables.ts'
 import type { Assignment } from './roles.ts'
 
 function App() {
-  // Client-side only for now: a refresh clears this. Moves to a smart contract later.
+  // Client-side only for now: a refresh clears these. Moves to a smart contract later.
   const [assignments, setAssignments] = useState<Assignment[]>([])
+  const [receivables, setReceivables] = useState<Receivable[]>([])
 
   return (
     <Routes>
@@ -17,6 +20,16 @@ function App() {
         path="/app/admin"
         element={
           <AdminRoles assignments={assignments} onChange={setAssignments} />
+        }
+      />
+      <Route
+        path="/app/seller"
+        element={
+          <Seller
+            assignments={assignments}
+            receivables={receivables}
+            onChange={setReceivables}
+          />
         }
       />
     </Routes>
