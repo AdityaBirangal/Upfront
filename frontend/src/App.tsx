@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { Route, Routes } from 'react-router'
+import RequireRole from './components/RequireRole.tsx'
+import WalletBar from './components/WalletBar.tsx'
 import AdminRoles from './pages/AdminRoles.tsx'
 import Buyer from './pages/Buyer.tsx'
 import Home from './pages/Home.tsx'
@@ -16,44 +18,60 @@ function App() {
   const [holdings, setHoldings] = useState<Holding[]>([])
 
   return (
-    <Routes>
-      <Route path="/" element={<Home />} />
-      <Route path="/app" element={<RoleSelect />} />
-      <Route
-        path="/app/admin"
-        element={
-          <AdminRoles assignments={assignments} onChange={setAssignments} />
-        }
-      />
-      <Route
-        path="/app/seller"
-        element={
-          <Seller
-            assignments={assignments}
-            receivables={receivables}
-            onChange={setReceivables}
-          />
-        }
-      />
-      <Route
-        path="/app/buyer"
-        element={
-          <Buyer receivables={receivables} onChange={setReceivables} />
-        }
-      />
-      <Route
-        path="/app/invest"
-        element={
-          <Invest
-            assignments={assignments}
-            receivables={receivables}
-            holdings={holdings}
-            onReceivablesChange={setReceivables}
-            onHoldingsChange={setHoldings}
-          />
-        }
-      />
-    </Routes>
+    <div className="app-shell">
+      <WalletBar />
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/app" element={<RoleSelect />} />
+        {/* Open to every wallet for now, so anyone can assign the first roles. */}
+        <Route
+          path="/app/admin"
+          element={
+            <AdminRoles assignments={assignments} onChange={setAssignments} />
+          }
+        />
+        <Route
+          path="/app/seller"
+          element={
+            <RequireRole role="Seller" assignments={assignments}>
+              {() => (
+                <Seller
+                  assignments={assignments}
+                  receivables={receivables}
+                  onChange={setReceivables}
+                />
+              )}
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/app/buyer"
+          element={
+            <RequireRole role="Buyer" assignments={assignments}>
+              {() => (
+                <Buyer receivables={receivables} onChange={setReceivables} />
+              )}
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/app/invest"
+          element={
+            <RequireRole role="Investor" assignments={assignments}>
+              {(wallet) => (
+                <Invest
+                  wallet={wallet}
+                  receivables={receivables}
+                  holdings={holdings}
+                  onReceivablesChange={setReceivables}
+                  onHoldingsChange={setHoldings}
+                />
+              )}
+            </RequireRole>
+          }
+        />
+      </Routes>
+    </div>
   )
 }
 
