@@ -469,6 +469,19 @@ export const upfrontAbi = [
   },
   {
     "type": "function",
+    "name": "cancelReceivable",
+    "inputs": [
+      {
+        "name": "id",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "createReceivable",
     "inputs": [
       {
@@ -597,6 +610,11 @@ export const upfrontAbi = [
             "internalType": "enum Status"
           },
           {
+            "name": "verified",
+            "type": "bool",
+            "internalType": "bool"
+          },
+          {
             "name": "docHash",
             "type": "bytes32",
             "internalType": "bytes32"
@@ -666,6 +684,19 @@ export const upfrontAbi = [
       }
     ],
     "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "rejectReceivable",
+    "inputs": [
+      {
+        "name": "id",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
     "type": "function",
@@ -835,6 +866,19 @@ export const upfrontAbi = [
     "stateMutability": "view"
   },
   {
+    "type": "function",
+    "name": "verifyReceivable",
+    "inputs": [
+      {
+        "name": "id",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
     "type": "event",
     "name": "ApprovalForAll",
     "inputs": [
@@ -855,6 +899,19 @@ export const upfrontAbi = [
         "type": "bool",
         "indexed": false,
         "internalType": "bool"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "ReceivableCancelled",
+    "inputs": [
+      {
+        "name": "id",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
       }
     ],
     "anonymous": false
@@ -904,6 +961,38 @@ export const upfrontAbi = [
         "type": "string",
         "indexed": false,
         "internalType": "string"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "ReceivableRejected",
+    "inputs": [
+      {
+        "name": "id",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "ReceivableVerified",
+    "inputs": [
+      {
+        "name": "id",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "buyer",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
       }
     ],
     "anonymous": false
@@ -1003,12 +1092,22 @@ export const upfrontAbi = [
   },
   {
     "type": "error",
+    "name": "AlreadyVerified",
+    "inputs": []
+  },
+  {
+    "type": "error",
     "name": "DocHashInUse",
     "inputs": []
   },
   {
     "type": "error",
     "name": "DueDateNotInFuture",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "DueDatePassed",
     "inputs": []
   },
   {
@@ -1125,6 +1224,17 @@ export const upfrontAbi = [
   },
   {
     "type": "error",
+    "name": "InvalidStatus",
+    "inputs": [
+      {
+        "name": "status",
+        "type": "uint8",
+        "internalType": "enum Status"
+      }
+    ]
+  },
+  {
+    "type": "error",
     "name": "NotAllowed",
     "inputs": [
       {
@@ -1141,7 +1251,27 @@ export const upfrontAbi = [
   },
   {
     "type": "error",
+    "name": "NotBuyer",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotSeller",
+    "inputs": []
+  },
+  {
+    "type": "error",
     "name": "SellerIsBuyer",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "UnitsAlreadySold",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "UnitsLocked",
     "inputs": []
   },
   {
