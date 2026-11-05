@@ -1,0 +1,19 @@
+{
+  "31337": {
+    "name": "anvil",
+    "explorer": null,
+    "usdt": null,
+    "versions": {}
+  },
+  "1874": {
+    "name": "whitechain-sepolia",
+    "explorer": "https://explorer.testnet.whitechain.io",
+    "usdt": "0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7",
+    "versions": {
+      "0": {
+        "probe": "0x163AB18EC678096E3605E340540744923E095654",
+        "deployBlock": 12310356
+      }
+    }
+  }
+}
