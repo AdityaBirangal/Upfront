@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { formatUsdt } from '../receivables.ts'
 import type { Receivable } from '../receivables.ts'
 
 type Props = {
@@ -28,6 +29,15 @@ function ReceivableCard({ receivable, children }: Props) {
       <p>
         Document: <code className="address">{receivable.docHash}</code>
       </p>
+      {receivable.maxUnitsPerInvestor > 0 && (
+        <p>
+          {receivable.discountBps / 100}% discount ·{' '}
+          {formatUsdt(receivable.unitPrice)} USDT per unit · Cap{' '}
+          {receivable.maxUnitsPerInvestor} per wallet · Sold{' '}
+          {receivable.unitsSold} of {receivable.faceValue} · Raised{' '}
+          {formatUsdt(receivable.unitsSold * receivable.unitPrice)} USDT
+        </p>
+      )}
       {children}
     </li>
   )

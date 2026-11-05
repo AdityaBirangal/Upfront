@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import ReceivableCard from '../components/ReceivableCard.tsx'
 import type { Receivable } from '../receivables.ts'
+import { useNow } from '../useNow.ts'
 
 type Props = {
   receivables: Receivable[]
@@ -9,12 +9,7 @@ type Props = {
 }
 
 function Buyer({ receivables, onChange }: Props) {
-  const [now, setNow] = useState(Date.now)
-
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 1000)
-    return () => clearInterval(timer)
-  }, [])
+  const now = useNow()
 
   function setStatus(target: Receivable, status: Receivable['status']) {
     onChange(

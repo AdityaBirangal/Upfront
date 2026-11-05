@@ -1,13 +1,18 @@
 import { useRef, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { Link } from 'react-router'
+import ListForm from '../components/ListForm.tsx'
 import ReceivableCard from '../components/ReceivableCard.tsx'
-import { documentProblem, hashDocument } from '../receivables.ts'
+import {
+  WHOLE_NUMBER,
+  documentProblem,
+  hashDocument,
+  unitPriceFor,
+} from '../receivables.ts'
 import type { Receivable } from '../receivables.ts'
 import { WALLET_ADDRESS } from '../roles.ts'
 import type { Assignment } from '../roles.ts'
 
-const WHOLE_NUMBER = /^[1-9]\d*$/
 const SAMPLE_PDF = 'sample-agreement.pdf'
 
 type Props = {
@@ -110,6 +115,10 @@ function Seller({ assignments, receivables, onChange }: Props) {
         dueDate: Math.floor(due / 1000),
         docHash,
         status: 'Created',
+        discountBps: 0,
+        unitPrice: 0,
+        maxUnitsPerInvestor: 0,
+        unitsSold: 0,
       },
     ])
     event.currentTarget.reset()
@@ -120,6 +129,26 @@ function Seller({ assignments, receivables, onChange }: Props) {
     setDueDate('')
     setDocHash('')
     setError('')
+  }
+
+  function list(
+    target: Receivable,
+    discountBps: number,
+    maxUnitsPerInvestor: number,
+  ) {
+    onChange(
+      receivables.map((r) =>
+        r.id === target.id
+          ? {
+              ...r,
+              status: 'Listed',
+              discountBps,
+              unitPrice: unitPriceFor(discountBps),
+              maxUnitsPerInvestor,
+            }
+          : r,
+      ),
+    )
   }
 
   return (
@@ -211,7 +240,16 @@ function Seller({ assignments, receivables, onChange }: Props) {
       ) : (
         <ul className="receivable-list">
           {receivables.map((receivable) => (
-            <ReceivableCard key={receivable.id} receivable={receivable} />
+            <ReceivableCard key={receivable.id} receivable={receivable}>
+              {receivable.status === 'Accepted' && (
+                <ListForm
+                  receivable={receivable}
+                  onList={(discountBps, maxUnitsPerInvestor) =>
+                    list(receivable, discountBps, maxUnitsPerInvestor)
+                  }
+                />
+              )}
+            </ReceivableCard>
           ))}
         </ul>
       )}
