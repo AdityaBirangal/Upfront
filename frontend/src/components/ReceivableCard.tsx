@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
-import { formatUsdt } from '../receivables.ts'
+import { Link } from 'react-router'
+import { formatDate } from '../receivables.ts'
 import type { Receivable } from '../receivables.ts'
 
 type Props = {
@@ -8,20 +9,21 @@ type Props = {
 }
 
 function ReceivableCard({ receivable, children }: Props) {
+  const units = receivable.totalUnits
   return (
     <li className="receivable">
       <div className="receivable-head">
-        <strong>{receivable.ref}</strong>
+        <strong>
+          #{receivable.id.toString()} · {receivable.ref || 'No reference'}
+        </strong>
         <span>{receivable.status}</span>
       </div>
       <p>
-        {receivable.faceValue.toLocaleString()} USDT ·{' '}
-        {receivable.faceValue.toLocaleString()}{' '}
-        {receivable.faceValue === 1 ? 'unit' : 'units'} · Due{' '}
-        {new Date(receivable.dueDate * 1000).toLocaleString([], {
-          dateStyle: 'medium',
-          timeStyle: 'short',
-        })}
+        {units.toLocaleString()} USDT · {units.toLocaleString()}{' '}
+        {units === 1n ? 'unit' : 'units'} · Due {formatDate(receivable.dueDate)}
+      </p>
+      <p>
+        Seller: <code className="address">{receivable.seller}</code>
       </p>
       <p>
         Buyer: <code className="address">{receivable.buyer}</code>
@@ -29,16 +31,10 @@ function ReceivableCard({ receivable, children }: Props) {
       <p>
         Document: <code className="address">{receivable.docHash}</code>
       </p>
-      {receivable.maxUnitsPerInvestor > 0 && (
-        <p>
-          {receivable.discountBps / 100}% discount ·{' '}
-          {formatUsdt(receivable.unitPrice)} USDT per unit · Cap{' '}
-          {receivable.maxUnitsPerInvestor} per wallet · Sold{' '}
-          {receivable.unitsSold} of {receivable.faceValue} · Raised{' '}
-          {formatUsdt(receivable.unitsSold * receivable.unitPrice)} USDT
-        </p>
-      )}
       {children}
+      <p>
+        <Link to={`/app/receivable/${receivable.id}`}>View details</Link>
+      </p>
     </li>
   )
 }

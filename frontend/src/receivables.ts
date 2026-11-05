@@ -1,43 +1,36 @@
-export type Receivable = {
-  id: number
-  ref: string
-  buyer: string
-  faceValue: number // whole USDT; 1 unit = 1 USDT
-  dueDate: number // unix seconds
-  docHash: string
-  status: 'Created' | 'Accepted' | 'Rejected' | 'Listed' | 'Funded'
-  // Set when listed. Prices are USDT base units, as in the smart contract.
-  discountBps: number
-  unitPrice: number
-  maxUnitsPerInvestor: number
-  unitsSold: number
+import type { ContractFunctionReturnType, Hex } from 'viem'
+import { upfrontAbi } from './generated/abis.ts'
+
+export const STATUSES = [
+  'None',
+  'Created',
+  'Accepted',
+  'Listed',
+  'Funded',
+  'Settled',
+  'Defaulted',
+  'Rejected',
+  'Cancelled',
+] as const
+
+export type Status = (typeof STATUSES)[number]
+
+type ChainReceivable = ContractFunctionReturnType<
+  typeof upfrontAbi,
+  'view',
+  'getReceivable'
+>
+
+export type Receivable = Omit<ChainReceivable, 'status'> & {
+  id: bigint
+  status: Status
 }
 
-export type Holding = {
-  receivableId: number
-  investor: string
-  units: number
-  paid: number // USDT base units
+export function toReceivable(id: bigint, data: ChainReceivable): Receivable {
+  return { ...data, id, status: STATUSES[data.status] ?? 'None' }
 }
 
-export const USDT = 1_000_000 // base units per USDT
 export const WHOLE_NUMBER = /^[1-9]\d*$/
-
-const DISCOUNT = /^\d+(\.\d{1,2})?$/
-
-export function parseDiscount(percent: string): number | null {
-  if (!DISCOUNT.test(percent)) return null
-  const bps = Math.round(Number(percent) * 100)
-  return bps > 0 && bps < 10000 ? bps : null
-}
-
-export function unitPriceFor(discountBps: number): number {
-  return (USDT * (10000 - discountBps)) / 10000
-}
-
-export function formatUsdt(baseUnits: number): string {
-  return (baseUnits / USDT).toLocaleString([], { maximumFractionDigits: 6 })
-}
 
 const MAX_DOCUMENT_BYTES = 5 * 1024 * 1024
 const PDF_HEADER = '%PDF-'
@@ -50,10 +43,17 @@ export function documentProblem(bytes: ArrayBuffer): string | null {
   return header === PDF_HEADER ? null : 'That file is not a PDF.'
 }
 
-export async function hashDocument(bytes: ArrayBuffer): Promise<string> {
+export async function hashDocument(bytes: ArrayBuffer): Promise<Hex> {
   const digest = await crypto.subtle.digest('SHA-256', bytes)
   const hex = Array.from(new Uint8Array(digest), (byte) =>
     byte.toString(16).padStart(2, '0'),
   )
   return `0x${hex.join('')}`
+}
+
+export function formatDate(unixSeconds: bigint): string {
+  return new Date(Number(unixSeconds) * 1000).toLocaleString([], {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  })
 }

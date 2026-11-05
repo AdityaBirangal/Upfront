@@ -166,21 +166,74 @@ body {
   margin: 8px 0 0;
 }
 
-.inline-form {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
-  align-items: end;
-  gap: 12px;
-  margin-top: 12px;
-}
-
-.buy-form {
-  grid-template-columns: minmax(0, 1fr) auto;
-}
-
-.receivable .preview,
-.receivable .form-error {
+fieldset.create-form {
   margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.hint {
+  opacity: 0.8;
+}
+
+.role-select {
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+}
+
+.button.held {
+  border-width: 2px;
+  font-weight: 600;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.tx-status.inline {
+  display: inline;
+  margin: 0;
+}
+
+.steps {
+  display: grid;
+  gap: 4px;
+  padding-left: 20px;
+}
+
+.details {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 8px 16px;
+}
+
+.details dt {
+  font-weight: 600;
+}
+
+.details dd {
+  margin: 0;
+}
+
+.badge {
+  padding: 12px 16px;
+  border: 1px solid currentColor;
+  border-radius: 8px;
+}
+
+.badge.ok {
+  color: #12b76a;
+}
+
+.badge.warn {
+  color: #d92d20;
 }
 
 .receivable-actions {
@@ -196,7 +249,10 @@ body {
 }
 
 @media (max-width: 560px) {
-  .inline-form,
+  .details {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .file-row,
   .create-form,
   .assign-form,

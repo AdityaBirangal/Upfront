@@ -1,0 +1,130 @@
+import { useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
+import { ContractFunctionRevertedError } from 'viem'
+import type { Address, Hash, Hex } from 'viem'
+import { waitForTransactionReceipt } from 'wagmi/actions'
+import { roleName } from './contracts.ts'
+import { config, targetChain } from './wagmi.ts'
+
+const CONTRACT_ERRORS: Record<string, string> = {
+  SellerIsBuyer: "The seller and buyer can't be the same wallet.",
+  InvalidFaceValue: 'The amount must be a whole number of USDT above 0.',
+  DueDateNotInFuture: 'The due date must be in the future.',
+  EmptyDocHash: 'The document hash is missing.',
+  DocHashInUse: 'This document is already used by another receivable.',
+  UnknownReceivable: 'This receivable does not exist.',
+  ZeroAddress: 'An address is missing.',
+  AccessControlUnauthorizedAccount: 'Only an admin wallet can change roles.',
+  AccessControlBadConfirmation: 'Only the wallet itself can renounce its role.',
+}
+
+function causes(error: unknown): unknown[] {
+  const chain: unknown[] = []
+  let current = error
+  while (current && chain.length < 20) {
+    chain.push(current)
+    current = (current as { cause?: unknown }).cause
+  }
+  return chain
+}
+
+function hasErrorNamed(error: unknown, names: string[]) {
+  return causes(error).some(
+    (cause) => cause instanceof Error && names.includes(cause.name),
+  )
+}
+
+function revertOf(error: unknown) {
+  return causes(error).find(
+    (cause) => cause instanceof ContractFunctionRevertedError,
+  ) as ContractFunctionRevertedError | undefined
+}
+
+/** The custom error name a smart contract reverted with, if any. */
+export function revertName(error: unknown): string | undefined {
+  return revertOf(error)?.data?.errorName
+}
+
+/** Turns wallet and contract errors into plain sentences. Never shows raw hex. */
+export function txErrorMessage(error: unknown): string {
+  const revert = revertOf(error)
+  if (revert) {
+    const name = revert.data?.errorName
+    if (name === 'NotAllowed' && revert.data?.args) {
+      const [account, role] = revert.data.args as [Address, Hex]
+      return `${account.slice(0, 6)}…${account.slice(-4)} doesn't have the ${roleName(role)} role.`
+    }
+    return (
+      (name && CONTRACT_ERRORS[name]) ??
+      'The smart contract refused this transaction.'
+    )
+  }
+  if (hasErrorNamed(error, ['UserRejectedRequestError'])) {
+    return 'You rejected the request in the wallet.'
+  }
+  if (
+    hasErrorNamed(error, ['ConnectorChainMismatchError', 'ChainMismatchError'])
+  ) {
+    return `Switch the wallet to ${targetChain.name} first.`
+  }
+  if (hasErrorNamed(error, ['ConnectorNotConnectedError'])) {
+    return 'Connect a wallet first.'
+  }
+  return 'The transaction failed. Try again.'
+}
+
+export type TxPhase = 'idle' | 'wallet' | 'pending' | 'confirmed' | 'failed'
+
+/**
+ * Runs one transaction: wallet prompt, then waits for the receipt, then refreshes
+ * every chain read. `send` should simulate first, so reverts show before the wallet opens.
+ */
+export function useTx() {
+  const queryClient = useQueryClient()
+  const [phase, setPhase] = useState<TxPhase>('idle')
+  const [hash, setHash] = useState<Hash>()
+  const [error, setError] = useState('')
+
+  async function run(send: () => Promise<Hash>): Promise<boolean> {
+    setPhase('wallet')
+    setHash(undefined)
+    setError('')
+    try {
+      const sent = await send()
+      setHash(sent)
+      setPhase('pending')
+      const receipt = await waitForTransactionReceipt(config, {
+        hash: sent,
+        chainId: targetChain.id,
+      })
+      if (receipt.status !== 'success') {
+        throw new Error('The transaction reverted.')
+      }
+      await queryClient.invalidateQueries()
+      setPhase('confirmed')
+      return true
+    } catch (caught) {
+      console.error(caught)
+      setError(txErrorMessage(caught))
+      setPhase('failed')
+      return false
+    }
+  }
+
+  function reset() {
+    setPhase('idle')
+    setHash(undefined)
+    setError('')
+  }
+
+  return {
+    phase,
+    hash,
+    error,
+    run,
+    reset,
+    busy: phase === 'wallet' || phase === 'pending',
+  }
+}
+
+export type Tx = ReturnType<typeof useTx>
