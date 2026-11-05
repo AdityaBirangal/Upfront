@@ -5,6 +5,7 @@ import { getAddress, isAddressEqual } from 'viem'
 import type { Address, Hex } from 'viem'
 import { useReadContract } from 'wagmi'
 import { readContract, simulateContract, writeContract } from 'wagmi/actions'
+import ListForm from '../components/ListForm.tsx'
 import ReceivableActions from '../components/ReceivableActions.tsx'
 import ReceivableList from '../components/ReceivableList.tsx'
 import TxStatus from '../components/TxStatus.tsx'
@@ -319,21 +320,24 @@ function Seller({ wallet }: Props) {
         isError={isError}
         empty="This wallet hasn't created any receivables yet."
         extra={(receivable) => (
-          <ReceivableActions
-            id={receivable.id}
-            actions={
-              canCancel(receivable)
-                ? [
-                    {
-                      label: 'Cancel',
-                      functionName: 'cancelReceivable',
-                      done: 'Cancelled. The document can back a new receivable.',
-                      confirm: `Cancel receivable #${receivable.id}? This can't be undone, but you can create it again with the same PDF.`,
-                    },
-                  ]
-                : []
-            }
-          />
+          <>
+            <ListForm receivable={receivable} />
+            <ReceivableActions
+              id={receivable.id}
+              actions={
+                canCancel(receivable)
+                  ? [
+                      {
+                        label: 'Cancel',
+                        functionName: 'cancelReceivable',
+                        done: 'Cancelled. The document can back a new receivable.',
+                        confirm: `Cancel receivable #${receivable.id}?${receivable.status === 'Listed' ? ' It comes off the marketplace.' : ''} This can't be undone, but you can create it again with the same PDF.`,
+                      },
+                    ]
+                  : []
+              }
+            />
+          </>
         )}
       />
     </main>

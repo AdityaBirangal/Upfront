@@ -5,13 +5,10 @@ import {
   useDisconnect,
   useSwitchChain,
 } from 'wagmi'
+import { shortAddress } from '../receivables.ts'
 import { targetChain } from '../wagmi.ts'
 import BackendStatus from './BackendStatus.tsx'
 import WalletBalance from './WalletBalance.tsx'
-
-function shortAddress(address: string) {
-  return `${address.slice(0, 6)}…${address.slice(-4)}`
-}
 
 function walletErrorMessage(error: Error) {
   switch (error.name) {

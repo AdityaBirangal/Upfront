@@ -299,3 +299,45 @@ fieldset.create-form {
 .tag.muted {
   opacity: 0.6;
 }
+
+form.inline-form {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+fieldset.inline-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+fieldset.inline-form .field {
+  flex: 1 1 160px;
+}
+
+.receivable form.inline-form p {
+  margin: 0;
+}
+
+.preview {
+  opacity: 0.8;
+}
+
+.progress {
+  width: 100%;
+  height: 12px;
+  accent-color: #12b76a;
+}
+
+.plain-list {
+  display: grid;
+  gap: 6px;
+  padding-left: 20px;
+}
+

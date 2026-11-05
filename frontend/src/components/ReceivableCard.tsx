@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router'
-import { formatDate } from '../receivables.ts'
+import { formatDate, formatPercent, formatUsdt } from '../receivables.ts'
 import type { Receivable } from '../receivables.ts'
 import StatusBadge from './StatusBadge.tsx'
 import VerifiedTag from './VerifiedTag.tsx'
@@ -27,6 +27,15 @@ function ReceivableCard({ receivable, children }: Props) {
         {units.toLocaleString()} USDT · {units.toLocaleString()}{' '}
         {units === 1n ? 'unit' : 'units'} · Due {formatDate(receivable.dueDate)}
       </p>
+      {receivable.unitPrice > 0n && (
+        <p>
+          Listed at {formatPercent(receivable.discountBps)} off ·{' '}
+          {formatUsdt(receivable.unitPrice)} USDT per unit ·{' '}
+          {receivable.unitsSold.toLocaleString()} of {units.toLocaleString()}{' '}
+          sold · Cap {receivable.maxUnitsPerInvestor.toLocaleString()} per
+          investor
+        </p>
+      )}
       <p>
         Seller: <code className="address">{receivable.seller}</code>
       </p>
