@@ -1,10 +1,17 @@
 import { Link, useParams } from 'react-router'
 import { useReadContract } from 'wagmi'
 import DocumentBadge from '../components/DocumentBadge.tsx'
+import Funding from '../components/Funding.tsx'
 import StatusBadge from '../components/StatusBadge.tsx'
 import VerifiedTag from '../components/VerifiedTag.tsx'
 import { upfront } from '../contracts.ts'
-import { formatDate, toReceivable } from '../receivables.ts'
+import {
+  formatDate,
+  formatPercent,
+  formatUsdt,
+  returnPercent,
+  toReceivable,
+} from '../receivables.ts'
 import { revertName } from '../tx.ts'
 
 const ID = /^[1-9]\d*$/
@@ -47,6 +54,17 @@ function ReceivableDetail() {
           <dd>{r.totalUnits.toLocaleString()} USDT</dd>
           <dt>Units</dt>
           <dd>{r.totalUnits.toLocaleString()} (1 unit pays 1 USDT)</dd>
+          {r.unitPrice > 0n && (
+            <>
+              <dt>Discount</dt>
+              <dd>
+                {formatPercent(r.discountBps)} · {formatUsdt(r.unitPrice)} USDT
+                per unit · {returnPercent(r.unitPrice)} return
+              </dd>
+              <dt>Investor cap</dt>
+              <dd>{r.maxUnitsPerInvestor.toLocaleString()} units per wallet</dd>
+            </>
+          )}
           <dt>Due date</dt>
           <dd>{formatDate(r.dueDate)}</dd>
           <dt>Created</dt>
@@ -65,6 +83,7 @@ function ReceivableDetail() {
           </dd>
         </dl>
         <DocumentBadge docHash={r.docHash} />
+        {r.unitPrice > 0n && <Funding receivable={r} />}
       </>
     )
   }

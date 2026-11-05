@@ -1,7 +1,8 @@
+import { useQuery } from '@tanstack/react-query'
 import { zeroAddress } from 'viem'
-import type { Address } from 'viem'
-import { useReadContract, useReadContracts } from 'wagmi'
-import { ROLE_IDS, access, upfront } from './contracts.ts'
+import type { Address, Hash } from 'viem'
+import { usePublicClient, useReadContract, useReadContracts } from 'wagmi'
+import { DEPLOY_BLOCK, ROLE_IDS, access, upfront } from './contracts.ts'
 import { toReceivable } from './receivables.ts'
 import { ROLES } from './roles.ts'
 import type { Assignment, Role } from './roles.ts'
@@ -71,4 +72,56 @@ export function useReceivables() {
     isPending: count.isPending || (ids.length > 0 && list.isPending),
     isError: count.isError || list.isError,
   }
+}
+
+// Whitechain's public RPC rejects log queries over 10,000 blocks.
+const LOG_BLOCK_RANGE = 10_000n
+
+export type Investment = {
+  id: bigint
+  investor: Address
+  units: bigint
+  paid: bigint
+  txHash: Hash
+  blockNumber: bigint
+}
+
+/** Every `invest` since deployment, optionally for one receivable or one investor. Oldest first. */
+export function useInvestments(filter: { id?: bigint; investor?: Address }) {
+  const client = usePublicClient({ chainId: upfront.chainId })
+  const { id, investor } = filter
+
+  return useQuery({
+    queryKey: ['investments', upfront.address, id?.toString(), investor],
+    enabled: Boolean(client),
+    queryFn: async (): Promise<Investment[]> => {
+      if (!client) return []
+      const latest = await client.getBlockNumber()
+      const ranges: [bigint, bigint][] = []
+      for (let from = DEPLOY_BLOCK; from <= latest; from += LOG_BLOCK_RANGE) {
+        const to = from + LOG_BLOCK_RANGE - 1n
+        ranges.push([from, to < latest ? to : latest])
+      }
+      const chunks = await Promise.all(
+        ranges.map(([fromBlock, toBlock]) =>
+          client.getContractEvents({
+            address: upfront.address,
+            abi: upfront.abi,
+            eventName: 'Invested',
+            args: { id, investor },
+            fromBlock,
+            toBlock,
+          }),
+        ),
+      )
+      return chunks.flat().map((log) => ({
+        id: log.args.id ?? 0n,
+        investor: log.args.investor ?? zeroAddress,
+        units: log.args.units ?? 0n,
+        paid: log.args.paid ?? 0n,
+        txHash: log.transactionHash,
+        blockNumber: log.blockNumber,
+      }))
+    },
+  })
 }

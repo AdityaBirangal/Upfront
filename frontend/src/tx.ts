@@ -4,6 +4,7 @@ import { ContractFunctionRevertedError } from 'viem'
 import type { Address, Hash, Hex } from 'viem'
 import { waitForTransactionReceipt } from 'wagmi/actions'
 import { roleName } from './contracts.ts'
+import { shortAddress } from './receivables.ts'
 import { config, targetChain } from './wagmi.ts'
 
 const CONTRACT_ERRORS: Record<string, string> = {
@@ -16,10 +17,19 @@ const CONTRACT_ERRORS: Record<string, string> = {
   NotBuyer: 'Only the buyer named on this receivable can do that.',
   NotSeller: 'Only the seller of this receivable can do that.',
   InvalidStatus: "This receivable's status doesn't allow that any more.",
-  DueDatePassed: 'The due date has passed, so it can no longer be verified.',
+  DueDatePassed: "The due date has passed, so that's no longer allowed.",
   AlreadyVerified: 'The buyer has already verified this receivable.',
   UnitsAlreadySold: 'Units have already been sold, so it can no longer be withdrawn.',
   UnitsLocked: "A seller's own units can't be transferred.",
+  InvalidDiscount: 'The discount must be above 0% and below 100%.',
+  InvalidCap:
+    "The investor cap must be from 1 unit up to the receivable's total units.",
+  InvalidUnits: 'Buy at least 1 unit.',
+  ExceedsAvailable: 'Not enough units are left. Someone may have just bought some.',
+  ExceedsCap: 'That would take this wallet over the per-investor cap.',
+  PartyCannotInvest: "The seller and buyer of a receivable can't invest in it.",
+  ERC20InsufficientBalance: "This wallet doesn't have enough USDT.",
+  ERC20InsufficientAllowance: 'Approve enough USDT first.',
   ZeroAddress: 'An address is missing.',
   AccessControlUnauthorizedAccount: 'Only an admin wallet can change roles.',
   AccessControlBadConfirmation: 'Only the wallet itself can renounce its role.',
@@ -59,7 +69,7 @@ export function txErrorMessage(error: unknown): string {
     const name = revert.data?.errorName
     if (name === 'NotAllowed' && revert.data?.args) {
       const [account, role] = revert.data.args as [Address, Hex]
-      return `${account.slice(0, 6)}…${account.slice(-4)} doesn't have the ${roleName(role)} role.`
+      return `${shortAddress(account)} doesn't have the ${roleName(role)} role.`
     }
     return (
       (name && CONTRACT_ERRORS[name]) ??

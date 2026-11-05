@@ -1,3 +1,4 @@
+import { formatUnits } from 'viem'
 import type { ContractFunctionReturnType, Hex } from 'viem'
 import { upfrontAbi } from './generated/abis.ts'
 
@@ -41,6 +42,20 @@ export function canVerify(r: Receivable): boolean {
   )
 }
 
+/** Same rules as listReceivable: Created and before the due date. Verification isn't needed. */
+export function canList(r: Receivable): boolean {
+  return r.status === 'Created' && nowSeconds() < r.dueDate
+}
+
+/** Same status and date rules as invest. */
+export function canInvest(r: Receivable): boolean {
+  return r.status === 'Listed' && nowSeconds() < r.dueDate
+}
+
+export function unitsLeft(r: Receivable): bigint {
+  return r.totalUnits - r.unitsSold
+}
+
 /** Same rules as cancelReceivable: Created or Listed, with no units sold. */
 export function canCancel(r: Receivable): boolean {
   return (r.status === 'Created' || r.status === 'Listed') && r.unitsSold === 0n
@@ -77,4 +92,59 @@ export function formatDate(unixSeconds: bigint): string {
     dateStyle: 'medium',
     timeStyle: 'short',
   })
+}
+
+export function shortAddress(address: string): string {
+  return `${address.slice(0, 6)}…${address.slice(-4)}`
+}
+
+// USDT on Whitechain Sepolia and the local mock both use 6 decimals.
+export const USDT_DECIMALS = 6
+/** USDT base units in one unit. Each unit pays exactly 1 USDT at settlement. */
+export const UNIT = 10n ** BigInt(USDT_DECIMALS)
+export const BPS = 10_000
+
+/** Formats USDT base units. Never format amounts by hand. */
+export function formatUsdt(value: bigint): string {
+  const [whole, fraction = ''] = formatUnits(value, USDT_DECIMALS).split('.')
+  return `${BigInt(whole).toLocaleString()}.${fraction.padEnd(2, '0')}`
+}
+
+const DISCOUNT = /^\d{1,2}(\.\d{1,2})?$/
+
+/** Parses a discount like "3" or "2.5" into basis points, or null if it isn't between 0% and 100%. */
+export function parseDiscount(text: string): number | null {
+  const trimmed = text.trim()
+  if (!DISCOUNT.test(trimmed)) return null
+  const [whole, fraction = ''] = trimmed.split('.')
+  const bps = Number(whole) * 100 + Number(fraction.padEnd(2, '0'))
+  return bps > 0 && bps < BPS ? bps : null
+}
+
+/** Same rounding as listReceivable. */
+export function unitPriceFor(discountBps: number): bigint {
+  return (UNIT * BigInt(BPS - discountBps)) / BigInt(BPS)
+}
+
+export function formatPercent(bps: number): string {
+  return `${(bps / 100).toLocaleString([], { maximumFractionDigits: 2 })}%`
+}
+
+/** Profit at settlement as a share of the price paid, e.g. 3.09% for a 3% discount. */
+export function returnPercent(unitPrice: bigint): string {
+  if (unitPrice === 0n) return '—'
+  const bps = Number(((UNIT - unitPrice) * BigInt(BPS * 100)) / unitPrice) / 100
+  return formatPercent(bps)
+}
+
+/** Whole days left, or a short phrase once it's under a day. */
+export function timeToDue(dueDate: bigint): string {
+  const seconds = Number(dueDate) - Date.now() / 1000
+  if (seconds <= 0) return 'Past due'
+  const days = Math.floor(seconds / 86_400)
+  if (days >= 1) return `${days} ${days === 1 ? 'day' : 'days'} to due date`
+  const hours = Math.floor(seconds / 3600)
+  if (hours >= 1) return `${hours} ${hours === 1 ? 'hour' : 'hours'} to due date`
+  const minutes = Math.max(1, Math.floor(seconds / 60))
+  return `${minutes} ${minutes === 1 ? 'minute' : 'minutes'} to due date`
 }

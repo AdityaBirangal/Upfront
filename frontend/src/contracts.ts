@@ -1,4 +1,4 @@
-import { keccak256, toBytes, zeroHash } from 'viem'
+import { erc20Abi, keccak256, toBytes, zeroHash } from 'viem'
 import type { Address, Hex } from 'viem'
 import { upfrontAbi, upfrontAccessAbi } from './generated/abis.ts'
 import { deployments } from './generated/deployments.ts'
@@ -12,6 +12,7 @@ type DeploymentVersion = {
 }
 type ChainDeployments = {
   explorer: string | null
+  usdt?: Address
   versions: Record<string, DeploymentVersion>
 }
 
@@ -27,6 +28,12 @@ const latest = Object.entries(chainDeployments?.versions ?? {})
 if (!latest?.upfront || !latest.access) {
   throw new Error(`No Upfront deployment for chain ${targetChain.id}`)
 }
+if (!chainDeployments?.usdt) {
+  throw new Error(`No USDT address for chain ${targetChain.id}`)
+}
+
+/** First block to read events from. */
+export const DEPLOY_BLOCK = BigInt(latest.deployBlock ?? 0)
 
 export const upfront = {
   address: latest.upfront,
@@ -37,6 +44,12 @@ export const upfront = {
 export const access = {
   address: latest.access,
   abi: upfrontAccessAbi,
+  chainId: targetChain.id,
+} as const
+
+export const usdt = {
+  address: chainDeployments.usdt,
+  abi: erc20Abi,
   chainId: targetChain.id,
 } as const
 
