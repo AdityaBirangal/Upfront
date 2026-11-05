@@ -5,11 +5,11 @@ import {ERC1155, ERC1155Supply} from "@openzeppelin/contracts/token/ERC1155/exte
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {UpfrontAccess} from "./UpfrontAccess.sol";
 
-/// @notice Lifecycle of a receivable. Final from V1, though later versions reach the later states.
+/// @notice Lifecycle of a receivable. Final from V2, though later versions reach the later states.
+/// Verification isn't a step here: see `Receivable.verified`.
 enum Status {
     None,
     Created,
-    Accepted,
     Listed,
     Funded,
     Settled,
@@ -18,7 +18,7 @@ enum Status {
     Cancelled
 }
 
-/// @notice Final from V1. Fields a version doesn't use yet stay zero.
+/// @notice Final from V2. Fields a version doesn't use yet stay zero.
 struct Receivable {
     address seller;
     address buyer;
@@ -31,6 +31,7 @@ struct Receivable {
     uint64 createdAt;
     uint16 discountBps; // set when listed
     Status status;
+    bool verified; // set by the buyer, never cleared
     bytes32 docHash; // SHA-256 of the document
     string ref; // e.g. "RCV-1001"
 }
@@ -38,7 +39,7 @@ struct Receivable {
 /// @title Upfront
 /// @notice ERC-1155 where each receivable is one token ID and 1 unit pays 1 USDT after settlement.
 contract Upfront is ERC1155Supply {
-    uint256 public constant VERSION = 1;
+    uint256 public constant VERSION = 2;
 
     UpfrontAccess public immutable access;
     IERC20Metadata public immutable usdt;
@@ -63,6 +64,9 @@ contract Upfront is ERC1155Supply {
         bytes32 docHash,
         string ref
     );
+    event ReceivableVerified(uint256 indexed id, address indexed buyer);
+    event ReceivableRejected(uint256 indexed id);
+    event ReceivableCancelled(uint256 indexed id);
 
     error ZeroAddress();
     error NotAllowed(address account, bytes32 role);
@@ -72,6 +76,13 @@ contract Upfront is ERC1155Supply {
     error EmptyDocHash();
     error DocHashInUse();
     error UnknownReceivable();
+    error NotBuyer();
+    error NotSeller();
+    error InvalidStatus(Status status);
+    error DueDatePassed();
+    error AlreadyVerified();
+    error UnitsAlreadySold();
+    error UnitsLocked();
 
     constructor(UpfrontAccess access_, IERC20Metadata usdt_, string memory uri_) ERC1155(uri_) {
         if (address(access_) == address(0) || address(usdt_) == address(0)) revert ZeroAddress();
@@ -119,10 +130,75 @@ contract Upfront is ERC1155Supply {
         _mint(msg.sender, id, totalUnits, "");
     }
 
+    /// @notice Sets the Verified tag. Investors see it, but listing and investing don't require it.
+    /// @dev The tag can't be cleared, and verifying doesn't change the status.
+    function verifyReceivable(uint256 id) external {
+        Receivable storage r = _get(id);
+        if (msg.sender != r.buyer) revert NotBuyer();
+        _requireRole(msg.sender, access.BUYER_ROLE());
+        if (r.status != Status.Created && r.status != Status.Listed && r.status != Status.Funded) {
+            revert InvalidStatus(r.status);
+        }
+        if (block.timestamp >= r.dueDate) revert DueDatePassed();
+        if (r.verified) revert AlreadyVerified();
+
+        r.verified = true;
+        emit ReceivableVerified(id, msg.sender);
+    }
+
+    /// @notice Lets the named buyer refuse an unverified receivable before any unit is sold.
+    /// @dev Needs no role, so a buyer whose role was revoked can still refuse.
+    function rejectReceivable(uint256 id) external {
+        Receivable storage r = _get(id);
+        if (msg.sender != r.buyer) revert NotBuyer();
+        _requireUnsold(r);
+        if (r.verified) revert AlreadyVerified();
+
+        _close(id, r, Status.Rejected);
+        emit ReceivableRejected(id);
+    }
+
+    /// @notice Lets the seller withdraw a receivable before any unit is sold, verified or not.
+    function cancelReceivable(uint256 id) external {
+        Receivable storage r = _get(id);
+        if (msg.sender != r.seller) revert NotSeller();
+        _requireUnsold(r);
+
+        _close(id, r, Status.Cancelled);
+        emit ReceivableCancelled(id);
+    }
+
     /// @notice Returns a receivable. Reverts if the id doesn't exist.
     function getReceivable(uint256 id) external view returns (Receivable memory) {
+        return _get(id);
+    }
+
+    /// @dev Every transfer passes through here, including batches and approved operators. Mints and
+    /// burns have no `from` or `to`, so they pass. Only `invest` will move a seller's units (V3).
+    function _update(address from, address to, uint256[] memory ids, uint256[] memory values) internal override {
+        if (from != address(0) && to != address(0)) {
+            for (uint256 i = 0; i < ids.length; ++i) {
+                if (_receivables[ids[i]].seller == from) revert UnitsLocked();
+            }
+        }
+        super._update(from, to, ids, values);
+    }
+
+    /// @dev Ends a receivable that sold nothing: burns its units and frees the document for reuse.
+    function _close(uint256 id, Receivable storage r, Status status) private {
+        r.status = status;
+        delete receivableIdByDocHash[r.docHash];
+        _burn(r.seller, id, r.totalUnits);
+    }
+
+    function _get(uint256 id) private view returns (Receivable storage) {
         if (id == 0 || id > receivableCount) revert UnknownReceivable();
         return _receivables[id];
+    }
+
+    function _requireUnsold(Receivable storage r) private view {
+        if (r.status != Status.Created && r.status != Status.Listed) revert InvalidStatus(r.status);
+        if (r.unitsSold != 0) revert UnitsAlreadySold();
     }
 
     function _requireRole(address account, bytes32 role) private view {
