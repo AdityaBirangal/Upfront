@@ -1,27 +1,16 @@
 import { Link } from 'react-router'
-import ReceivableCard from '../components/ReceivableCard.tsx'
-import type { Receivable } from '../receivables.ts'
-import { useNow } from '../useNow.ts'
+import { isAddressEqual } from 'viem'
+import type { Address } from 'viem'
+import ReceivableList from '../components/ReceivableList.tsx'
+import { useReceivables } from '../chain.ts'
 
 type Props = {
-  receivables: Receivable[]
-  onChange: (receivables: Receivable[]) => void
+  wallet: Address
 }
 
-function Buyer({ receivables, onChange }: Props) {
-  const now = useNow()
-
-  function setStatus(target: Receivable, status: Receivable['status']) {
-    onChange(
-      receivables.map((r) => (r.id === target.id ? { ...r, status } : r)),
-    )
-  }
-
-  function reject(receivable: Receivable) {
-    if (window.confirm(`Reject ${receivable.ref}? This can't be undone.`)) {
-      setStatus(receivable, 'Rejected')
-    }
-  }
+function Buyer({ wallet }: Props) {
+  const { receivables, isPending, isError } = useReceivables()
+  const mine = receivables.filter((r) => isAddressEqual(r.buyer, wallet))
 
   return (
     <main className="panel">
@@ -29,44 +18,29 @@ function Buyer({ receivables, onChange }: Props) {
         ← Back
       </Link>
       <h1>Approve receivables</h1>
+      <p className="hint">
+        Receivables where this wallet is the buyer. Accepting and rejecting
+        aren't available on the deployed smart contract yet.
+      </p>
 
-      {receivables.length === 0 ? (
-        <p>No receivables yet.</p>
-      ) : (
-        <ul className="receivable-list">
-          {receivables.map((receivable) => {
-            const isPastDue = receivable.dueDate * 1000 <= now
-            return (
-              <ReceivableCard key={receivable.id} receivable={receivable}>
-                {receivable.status === 'Created' && (
-                  <>
-                    {isPastDue && (
-                      <p>The due date has passed, so this can't be accepted.</p>
-                    )}
-                    <div className="receivable-actions">
-                      <button
-                        type="button"
-                        className="button"
-                        disabled={isPastDue}
-                        onClick={() => setStatus(receivable, 'Accepted')}
-                      >
-                        Accept
-                      </button>
-                      <button
-                        type="button"
-                        className="button"
-                        onClick={() => reject(receivable)}
-                      >
-                        Reject
-                      </button>
-                    </div>
-                  </>
-                )}
-              </ReceivableCard>
-            )
-          })}
-        </ul>
-      )}
+      <ReceivableList
+        receivables={mine}
+        isPending={isPending}
+        isError={isError}
+        empty="No receivables name this wallet as the buyer."
+        extra={(receivable) =>
+          receivable.status === 'Created' && (
+            <div className="receivable-actions">
+              <button type="button" className="button" disabled>
+                Accept
+              </button>
+              <button type="button" className="button" disabled>
+                Reject
+              </button>
+            </div>
+          )
+        }
+      />
     </main>
   )
 }

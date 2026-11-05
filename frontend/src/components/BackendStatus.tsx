@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
+import { BACKEND_URL } from '../backend.ts'
 
-const BACKEND_URL: string | undefined = import.meta.env.VITE_BACKEND_URL
 const CHECK_EVERY_MS = 30_000
 const TIMEOUT_MS = 5_000
 
