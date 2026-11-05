@@ -32,3 +32,75 @@ body {
   text-decoration: none;
   cursor: pointer;
 }
+
+.admin {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 32px 16px;
+}
+
+.back-link {
+  color: inherit;
+}
+
+.assign-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 140px auto;
+  align-items: end;
+  gap: 12px;
+}
+
+.field {
+  display: grid;
+  gap: 4px;
+}
+
+.input {
+  padding: 12px;
+  border: 1px solid currentColor;
+  border-radius: 8px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  min-width: 0;
+  height: 46px;
+  box-sizing: border-box;
+}
+
+.form-error {
+  color: #d92d20;
+}
+
+.assignment-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.assignment {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 80px auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.address {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 560px) {
+  .assign-form,
+  .assignment {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .assignment-list {
+    gap: 24px;
+  }
+
+  .assignment {
+    gap: 4px;
+  }
+}
