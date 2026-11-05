@@ -22,7 +22,7 @@ npm run dev
 |---|---|
 | `VITE_CHAIN_ID` | `31337` for local Anvil, or `1874` for Whitechain Sepolia (the default when unset) |
 | `VITE_RPC_URL` | RPC address. Leave it unset to use the chain's public RPC |
-| `VITE_BACKEND_URL` | Backend address. Leave it unset to skip the status check |
+| `VITE_BACKEND_URL` | Backend address, including `/api`. Leave it unset to use `/api` on the same origin |
 
 | Command | Does |
 |---|---|
@@ -46,16 +46,18 @@ The seller, buyer, and investor pages only open for a connected wallet that hold
 
 The header shows the backend status, and the connected wallet with its native token balance. It
 warns if the wallet is on the wrong network, with a button to switch. The backend counts as online
-when `GET /health` returns `{ "ok": true }`, and the app rechecks every 30 seconds.
+when `GET /api/health` returns `{ "ok": true }`, and the app rechecks every 30 seconds.
 
 ## Deploying
 
-The app is a static site. Set the host's root directory to `frontend`, the build command to
-`npm run build`, and the output directory to `dist`. Set `VITE_CHAIN_ID=1874` and `VITE_BACKEND_URL`
-on the host, because Vite reads them at build time.
+On Vercel, the frontend and backend deploy as one project from `vercel.json` in the repo root. The
+backend serves `/api/*` and the frontend serves everything else, so leave `VITE_BACKEND_URL` unset.
+Set `VITE_CHAIN_ID=1874`, because Vite reads it at build time. Use `vercel dev` in the repo root to
+run both locally.
 
-Routes like `/app/admin` need every path to serve `index.html`. `vercel.json` does this on Vercel,
-and `public/_redirects` does it on Netlify and Cloudflare Pages.
+Routes like `/app/admin` need to serve `index.html`. The `frontend` service in the root `vercel.json`
+does this on Vercel, for paths under `/app`, so a new top-level route needs adding there too.
+`public/_redirects` does it on Netlify and Cloudflare Pages.
 
 ## Try the full flow
 

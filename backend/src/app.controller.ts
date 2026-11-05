@@ -1,9 +1,9 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Inject } from '@nestjs/common';
 import { ChainService } from './chain/chain.service.js';
 
 @Controller()
 export class AppController {
-  constructor(private readonly chain: ChainService) {}
+  constructor(@Inject(ChainService) private readonly chain: ChainService) {}
 
   @Get('health')
   async health() {

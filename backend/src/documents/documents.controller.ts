@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   HttpStatus,
+  Inject,
   Param,
   Post,
   Res,
@@ -16,7 +17,9 @@ import { DocumentsService } from './documents.service.js';
 
 @Controller('documents')
 export class DocumentsController {
-  constructor(private readonly documents: DocumentsService) {}
+  constructor(
+    @Inject(DocumentsService) private readonly documents: DocumentsService,
+  ) {}
 
   @Post()
   @UseInterceptors(FileInterceptor('file'))

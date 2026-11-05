@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DocumentMeta, DocumentStorage } from './document-storage.js';
 
@@ -14,7 +14,7 @@ function isMissing(error: unknown) {
 export class LocalDiskStorage extends DocumentStorage {
   private readonly dir: string;
 
-  constructor(config: ConfigService) {
+  constructor(@Inject(ConfigService) config: ConfigService) {
     super();
     this.dir = config.get('DATA_DIR') || './data';
   }

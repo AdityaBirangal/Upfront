@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   Address,
@@ -33,7 +33,7 @@ export class ChainService {
   private readonly upfront: Address | null;
   private readonly access: Address | null;
 
-  constructor(config: ConfigService) {
+  constructor(@Inject(ConfigService) config: ConfigService) {
     this.chainId = Number(config.get('CHAIN_ID') || 31337);
     this.upfront =
       config.get<Address>('UPFRONT_ADDRESS') ||

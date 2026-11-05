@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { DocumentStorage } from './document-storage.js';
 
 const HASH_FORMAT = /^0x[0-9a-f]{64}$/;
@@ -18,7 +18,9 @@ function assertHashFormat(hash: unknown): asserts hash is string {
 
 @Injectable()
 export class DocumentsService {
-  constructor(private readonly storage: DocumentStorage) {}
+  constructor(
+    @Inject(DocumentStorage) private readonly storage: DocumentStorage,
+  ) {}
 
   async upload(hash: unknown, bytes: Buffer | undefined) {
     assertHashFormat(hash);

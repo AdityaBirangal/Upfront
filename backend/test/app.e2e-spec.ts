@@ -28,7 +28,7 @@ describe('Backend (e2e)', () => {
   const server = () => app.getHttpServer();
   const upload = (bytes: Buffer, hash: string, filename = 'agreement.pdf') =>
     request(server())
-      .post('/documents')
+      .post('/api/documents')
       .field('hash', hash)
       .attach('file', bytes, { filename, contentType: 'application/pdf' });
 
@@ -60,7 +60,7 @@ describe('Backend (e2e)', () => {
 
   describe('health', () => {
     it('stays ok with null versions when nothing is deployed', () => {
-      return request(server()).get('/health').expect(200).expect({
+      return request(server()).get('/api/health').expect(200).expect({
         ok: true,
         chainId: 31337,
         upfront: null,
@@ -84,14 +84,14 @@ describe('Backend (e2e)', () => {
 
     it('allows the configured origin', () => {
       return request(server())
-        .get('/health')
+        .get('/api/health')
         .set('Origin', ALLOWED_ORIGIN)
         .expect('Access-Control-Allow-Origin', ALLOWED_ORIGIN);
     });
 
     it('does not allow another origin', async () => {
       const response = await request(server())
-        .get('/health')
+        .get('/api/health')
         .set('Origin', 'https://evil.test');
 
       expect(response.headers['access-control-allow-origin']).not.toBe(
@@ -112,7 +112,7 @@ describe('Backend (e2e)', () => {
       });
 
       const fetched = await request(server())
-        .get(`/documents/${hash}`)
+        .get(`/api/documents/${hash}`)
         .responseType('blob')
         .expect(200)
         .expect('Content-Type', 'application/pdf');
@@ -192,7 +192,7 @@ describe('Backend (e2e)', () => {
 
     it('rejects an upload with no hash', async () => {
       await request(server())
-        .post('/documents')
+        .post('/api/documents')
         .attach('file', pdf, 'agreement.pdf')
         .expect(400)
         .expect({ error: 'invalid_hash' });
@@ -200,7 +200,7 @@ describe('Backend (e2e)', () => {
 
     it('rejects an upload with no file', async () => {
       await request(server())
-        .post('/documents')
+        .post('/api/documents')
         .field('hash', sha256(pdf))
         .expect(400)
         .expect({ error: 'missing_file' });
@@ -208,7 +208,7 @@ describe('Backend (e2e)', () => {
 
     it('rejects a file sent under the wrong field name', async () => {
       await request(server())
-        .post('/documents')
+        .post('/api/documents')
         .field('hash', sha256(pdf))
         .attach('other', pdf, 'agreement.pdf')
         .expect(400)
@@ -217,7 +217,7 @@ describe('Backend (e2e)', () => {
 
     it('rejects malformed JSON in the plan error shape', async () => {
       await request(server())
-        .post('/documents')
+        .post('/api/documents')
         .set('Content-Type', 'application/json')
         .send('{oops')
         .expect(400)
@@ -226,7 +226,7 @@ describe('Backend (e2e)', () => {
 
     it('returns 404 for an unknown document', async () => {
       await request(server())
-        .get(`/documents/0x${'cd'.repeat(32)}`)
+        .get(`/api/documents/0x${'cd'.repeat(32)}`)
         .expect(404)
         .expect({ error: 'not_found' });
     });
@@ -237,7 +237,7 @@ describe('Backend (e2e)', () => {
       ['encoded null byte', `0x${'ab'.repeat(32)}%00`],
     ])('refuses a bad fetch hash: %s', async (_name, hash) => {
       await request(server())
-        .get(`/documents/${hash}`)
+        .get(`/api/documents/${hash}`)
         .expect(400)
         .expect({ error: 'invalid_hash' });
     });
@@ -245,7 +245,7 @@ describe('Backend (e2e)', () => {
 
   it('returns unknown routes in the plan error shape', () => {
     return request(server())
-      .get('/')
+      .get('/api/unknown')
       .expect(404)
       .expect({ error: 'not_found' });
   });

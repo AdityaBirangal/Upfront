@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 
-const BACKEND_URL: string | undefined = import.meta.env.VITE_BACKEND_URL
+const BACKEND_URL: string = import.meta.env.VITE_BACKEND_URL || '/api'
 const CHECK_EVERY_MS = 30_000
 const TIMEOUT_MS = 5_000
 
@@ -18,18 +18,15 @@ function BackendStatus() {
   const health = useQuery({
     queryKey: ['backend-health'],
     queryFn: fetchHealth,
-    enabled: Boolean(BACKEND_URL),
     refetchInterval: CHECK_EVERY_MS,
     retry: false,
   })
 
-  const label = !BACKEND_URL
-    ? 'not configured'
-    : health.isPending
-      ? 'checking…'
-      : health.isSuccess
-        ? 'online'
-        : 'offline'
+  const label = health.isPending
+    ? 'checking…'
+    : health.isSuccess
+      ? 'online'
+      : 'offline'
 
   return <span className="backend-status">Backend: {label}</span>
 }

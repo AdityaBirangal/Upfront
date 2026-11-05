@@ -8,4 +8,5 @@ async function bootstrap() {
   configureApp(app);
   await app.listen(app.get(ConfigService).get<string>('PORT', '8787'));
 }
-await bootstrap();
+// Not awaited: on Vercel, listen() is intercepted and may never resolve.
+void bootstrap();
