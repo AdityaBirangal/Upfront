@@ -268,3 +268,34 @@ fieldset.create-form {
     gap: 4px;
   }
 }
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.details .tags {
+  justify-content: flex-start;
+}
+
+.tag {
+  padding: 2px 8px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 0.85em;
+  white-space: nowrap;
+}
+
+.tag.ok {
+  color: #12b76a;
+}
+
+.tag.warn {
+  color: #d92d20;
+}
+
+.tag.muted {
+  opacity: 0.6;
+}

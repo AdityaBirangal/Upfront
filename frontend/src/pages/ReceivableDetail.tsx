@@ -1,6 +1,8 @@
 import { Link, useParams } from 'react-router'
 import { useReadContract } from 'wagmi'
 import DocumentBadge from '../components/DocumentBadge.tsx'
+import StatusBadge from '../components/StatusBadge.tsx'
+import VerifiedTag from '../components/VerifiedTag.tsx'
 import { upfront } from '../contracts.ts'
 import { formatDate, toReceivable } from '../receivables.ts'
 import { revertName } from '../tx.ts'
@@ -35,7 +37,10 @@ function ReceivableDetail() {
       <>
         <dl className="details">
           <dt>Status</dt>
-          <dd>{r.status}</dd>
+          <dd className="tags">
+            <StatusBadge status={r.status} />
+            <VerifiedTag verified={r.verified} />
+          </dd>
           <dt>Reference</dt>
           <dd>{r.ref || '—'}</dd>
           <dt>Face value</dt>

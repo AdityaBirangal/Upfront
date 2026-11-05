@@ -2,6 +2,8 @@ import type { ReactNode } from 'react'
 import { Link } from 'react-router'
 import { formatDate } from '../receivables.ts'
 import type { Receivable } from '../receivables.ts'
+import StatusBadge from './StatusBadge.tsx'
+import VerifiedTag from './VerifiedTag.tsx'
 
 type Props = {
   receivable: Receivable
@@ -16,7 +18,10 @@ function ReceivableCard({ receivable, children }: Props) {
         <strong>
           #{receivable.id.toString()} · {receivable.ref || 'No reference'}
         </strong>
-        <span>{receivable.status}</span>
+        <span className="tags">
+          <StatusBadge status={receivable.status} />
+          <VerifiedTag verified={receivable.verified} />
+        </span>
       </div>
       <p>
         {units.toLocaleString()} USDT · {units.toLocaleString()}{' '}

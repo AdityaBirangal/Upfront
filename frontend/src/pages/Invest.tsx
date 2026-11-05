@@ -3,6 +3,8 @@ import { isAddressEqual } from 'viem'
 import type { Address } from 'viem'
 import { useReadContract } from 'wagmi'
 import ReceivableList from '../components/ReceivableList.tsx'
+import StatusBadge from '../components/StatusBadge.tsx'
+import VerifiedTag from '../components/VerifiedTag.tsx'
 import { useReceivables } from '../chain.ts'
 import { upfront } from '../contracts.ts'
 
@@ -62,7 +64,10 @@ function Invest({ wallet }: Props) {
                 <strong>
                   #{receivable.id.toString()} · {receivable.ref}
                 </strong>
-                <span>{receivable.status}</span>
+                <span className="tags">
+                  <StatusBadge status={receivable.status} />
+                  <VerifiedTag verified={receivable.verified} />
+                </span>
               </div>
               <p>
                 {units.toLocaleString()} {units === 1n ? 'unit' : 'units'} ·
