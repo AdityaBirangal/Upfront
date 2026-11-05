@@ -6,6 +6,8 @@ import {
   useSwitchChain,
 } from 'wagmi'
 import { targetChain } from '../wagmi.ts'
+import BackendStatus from './BackendStatus.tsx'
+import WalletBalance from './WalletBalance.tsx'
 
 function shortAddress(address: string) {
   return `${address.slice(0, 6)}…${address.slice(-4)}`
@@ -32,6 +34,7 @@ function WalletBar() {
   if (status !== 'connected') {
     return (
       <header className="wallet-bar">
+        <BackendStatus />
         {connect.error && (
           <p className="form-error wallet-message" role="alert">
             {walletErrorMessage(connect.error)}
@@ -51,6 +54,7 @@ function WalletBar() {
 
   return (
     <header className="wallet-bar">
+      <BackendStatus />
       {chainId !== targetChain.id && (
         <>
           <p className="form-error wallet-message" role="alert">
@@ -68,6 +72,7 @@ function WalletBar() {
           </button>
         </>
       )}
+      <WalletBalance address={address} />
       <code title={address}>{shortAddress(address)}</code>
       <button
         type="button"

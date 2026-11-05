@@ -3,9 +3,10 @@
 The web app for Upfront: businesses get paid early, investors get paid more. A seller turns a
 receivable into units, the buyer approves it, and investors buy the units at a discount.
 
-Wallet connection is real. Everything else runs in the browser: roles, receivables, and holdings
-are kept in memory, so **a refresh clears them**. The app isn't connected to smart contracts or a
-backend, so no transactions are sent, no USDT moves, and PDFs aren't uploaded.
+The wallet connection, balance, and backend status are real. Everything else runs in the browser:
+roles, receivables, and holdings are kept in memory, so **a refresh clears them**. The app doesn't
+call smart contracts, and the only backend call is the status check, so no transactions are sent,
+no USDT moves, and PDFs aren't uploaded.
 
 ## Getting started
 
@@ -21,6 +22,7 @@ npm run dev
 |---|---|
 | `VITE_CHAIN_ID` | `31337` for local Anvil, or `1874` for Whitechain Sepolia (the default when unset) |
 | `VITE_RPC_URL` | RPC address. Leave it unset to use the chain's public RPC |
+| `VITE_BACKEND_URL` | Backend address. Leave it unset to skip the status check |
 
 | Command | Does |
 |---|---|
@@ -40,8 +42,20 @@ npm run dev
 | `/app/buyer` | Buyer | Accept or reject receivables |
 | `/app/invest` | Investor | Buy units and see your portfolio |
 
-The seller, buyer, and investor pages only open for a connected wallet that holds that role. The
-header shows the connected wallet and warns if it's on the wrong network, with a button to switch.
+The seller, buyer, and investor pages only open for a connected wallet that holds that role.
+
+The header shows the backend status, and the connected wallet with its native token balance. It
+warns if the wallet is on the wrong network, with a button to switch. The backend counts as online
+when `GET /health` returns `{ "ok": true }`, and the app rechecks every 30 seconds.
+
+## Deploying
+
+The app is a static site. Set the host's root directory to `frontend`, the build command to
+`npm run build`, and the output directory to `dist`. Set `VITE_CHAIN_ID=1874` and `VITE_BACKEND_URL`
+on the host, because Vite reads them at build time.
+
+Routes like `/app/admin` need every path to serve `index.html`. `vercel.json` does this on Vercel,
+and `public/_redirects` does it on Netlify and Cloudflare Pages.
 
 ## Try the full flow
 
@@ -93,6 +107,8 @@ src/
   pages/                      One file per route
   components/
     WalletBar.tsx             Header with wallet and network controls
+    WalletBalance.tsx         Native token balance of the connected wallet
+    BackendStatus.tsx         Backend status from GET /health
     RequireRole.tsx           Blocks a page if the wallet lacks the role
     ReceivableCard.tsx        Receivable details, used on every role page
     ListForm.tsx              Seller's discount and cap form

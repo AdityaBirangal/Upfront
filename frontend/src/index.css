@@ -27,6 +27,10 @@ body {
   padding: 8px 14px;
 }
 
+.backend-status {
+  margin-right: auto;
+}
+
 .wallet-message {
   margin: 0;
 }
