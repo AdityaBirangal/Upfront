@@ -3,6 +3,8 @@ pragma solidity 0.8.30;
 
 import {ERC1155, ERC1155Supply} from "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Supply.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {UpfrontAccess} from "./UpfrontAccess.sol";
 
 /// @notice Lifecycle of a receivable. Final from V2, though later versions reach the later states.
@@ -38,8 +40,10 @@ struct Receivable {
 
 /// @title Upfront
 /// @notice ERC-1155 where each receivable is one token ID and 1 unit pays 1 USDT after settlement.
-contract Upfront is ERC1155Supply {
-    uint256 public constant VERSION = 2;
+contract Upfront is ERC1155Supply, ReentrancyGuard {
+    uint256 public constant VERSION = 3;
+
+    uint256 private constant BPS = 10_000;
 
     UpfrontAccess public immutable access;
     IERC20Metadata public immutable usdt;
@@ -55,6 +59,10 @@ contract Upfront is ERC1155Supply {
 
     mapping(uint256 id => Receivable) private _receivables;
 
+    /// @dev Lets one `invest` transfer past `UnitsLocked`. `_update` clears it on use, before the
+    /// receiver's callback runs, so the callback can't move more of the seller's units.
+    bool private _funding;
+
     event ReceivableCreated(
         uint256 indexed id,
         address indexed seller,
@@ -67,6 +75,9 @@ contract Upfront is ERC1155Supply {
     event ReceivableVerified(uint256 indexed id, address indexed buyer);
     event ReceivableRejected(uint256 indexed id);
     event ReceivableCancelled(uint256 indexed id);
+    event ReceivableListed(uint256 indexed id, uint16 discountBps, uint256 unitPrice, uint256 maxUnitsPerInvestor);
+    event Invested(uint256 indexed id, address indexed investor, uint256 units, uint256 paid);
+    event ReceivableFunded(uint256 indexed id);
 
     error ZeroAddress();
     error NotAllowed(address account, bytes32 role);
@@ -83,6 +94,12 @@ contract Upfront is ERC1155Supply {
     error AlreadyVerified();
     error UnitsAlreadySold();
     error UnitsLocked();
+    error InvalidDiscount();
+    error InvalidCap();
+    error InvalidUnits();
+    error ExceedsAvailable();
+    error ExceedsCap();
+    error PartyCannotInvest();
 
     constructor(UpfrontAccess access_, IERC20Metadata usdt_, string memory uri_) ERC1155(uri_) {
         if (address(access_) == address(0) || address(usdt_) == address(0)) revert ZeroAddress();
@@ -168,15 +185,67 @@ contract Upfront is ERC1155Supply {
         emit ReceivableCancelled(id);
     }
 
+    /// @notice Offers a receivable's units at a discount. The buyer's verification isn't required.
+    /// @param id The receivable.
+    /// @param discountBps Percent below face value, in basis points.
+    /// @param maxUnitsPerInvestor Most units one wallet can buy.
+    function listReceivable(uint256 id, uint16 discountBps, uint256 maxUnitsPerInvestor) external {
+        Receivable storage r = _get(id);
+        if (msg.sender != r.seller) revert NotSeller();
+        _requireRole(msg.sender, access.SELLER_ROLE());
+        if (r.status != Status.Created) revert InvalidStatus(r.status);
+        if (block.timestamp >= r.dueDate) revert DueDatePassed();
+        if (discountBps == 0 || discountBps >= BPS) revert InvalidDiscount();
+        if (maxUnitsPerInvestor == 0 || maxUnitsPerInvestor > r.totalUnits) revert InvalidCap();
+
+        uint256 unitPrice = UNIT * (BPS - discountBps) / BPS;
+        r.discountBps = discountBps;
+        r.unitPrice = unitPrice;
+        r.maxUnitsPerInvestor = maxUnitsPerInvestor;
+        r.status = Status.Listed;
+
+        emit ReceivableListed(id, discountBps, unitPrice, maxUnitsPerInvestor);
+    }
+
+    /// @notice Buys units. USDT reaches the seller and units reach the caller in one transaction.
+    /// @dev The caller must have approved this contract for `units * unitPrice` USDT.
+    function invest(uint256 id, uint256 units) external nonReentrant {
+        Receivable storage r = _get(id);
+        _requireRole(msg.sender, access.INVESTOR_ROLE());
+        if (msg.sender == r.seller || msg.sender == r.buyer) revert PartyCannotInvest();
+        if (r.status != Status.Listed) revert InvalidStatus(r.status);
+        if (block.timestamp >= r.dueDate) revert DueDatePassed();
+        _requireRole(r.seller, access.SELLER_ROLE());
+        _requireRole(r.buyer, access.BUYER_ROLE());
+        if (units == 0) revert InvalidUnits();
+        if (units > r.totalUnits - r.unitsSold) revert ExceedsAvailable();
+        if (balanceOf(msg.sender, id) + units > r.maxUnitsPerInvestor) revert ExceedsCap();
+
+        uint256 paid = units * r.unitPrice;
+        address seller = r.seller;
+        r.unitsSold += units;
+        bool soldOut = r.unitsSold == r.totalUnits;
+        if (soldOut) r.status = Status.Funded;
+
+        emit Invested(id, msg.sender, units, paid);
+        if (soldOut) emit ReceivableFunded(id);
+
+        SafeERC20.safeTransferFrom(usdt, msg.sender, seller, paid);
+        _funding = true;
+        _safeTransferFrom(seller, msg.sender, id, units, "");
+    }
+
     /// @notice Returns a receivable. Reverts if the id doesn't exist.
     function getReceivable(uint256 id) external view returns (Receivable memory) {
         return _get(id);
     }
 
     /// @dev Every transfer passes through here, including batches and approved operators. Mints and
-    /// burns have no `from` or `to`, so they pass. Only `invest` will move a seller's units (V3).
+    /// burns have no `from` or `to`, so they pass. Only `invest` can move a seller's units.
     function _update(address from, address to, uint256[] memory ids, uint256[] memory values) internal override {
-        if (from != address(0) && to != address(0)) {
+        if (_funding) {
+            _funding = false;
+        } else if (from != address(0) && to != address(0)) {
             for (uint256 i = 0; i < ids.length; ++i) {
                 if (_receivables[ids[i]].seller == from) revert UnitsLocked();
             }

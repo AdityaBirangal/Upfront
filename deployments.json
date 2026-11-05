@@ -13,6 +13,11 @@
         "upfront": "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
         "access": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
         "deployBlock": 0
+      },
+      "3": {
+        "upfront": "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
+        "access": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+        "deployBlock": 0
       }
     }
   },
@@ -34,6 +39,11 @@
         "upfront": "0xf45B27b9076c33FDA25Cc871016CA32599CAAa7d",
         "access": "0x278d6C5c41bC7997A6BBffF367a28a3137B08f33",
         "deployBlock": 12318568
+      },
+      "3": {
+        "upfront": "0x994dD61016BAf0A5d290729b4F095Fc312d25714",
+        "access": "0x47e56bf8c2569eb9C043A8882ED85f5DC88F6F65",
+        "deployBlock": 12320862
       }
     }
   }

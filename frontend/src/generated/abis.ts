@@ -631,6 +631,24 @@ export const upfrontAbi = [
   },
   {
     "type": "function",
+    "name": "invest",
+    "inputs": [
+      {
+        "name": "id",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "units",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "isApprovedForAll",
     "inputs": [
       {
@@ -652,6 +670,29 @@ export const upfrontAbi = [
       }
     ],
     "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "listReceivable",
+    "inputs": [
+      {
+        "name": "id",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "discountBps",
+        "type": "uint16",
+        "internalType": "uint16"
+      },
+      {
+        "name": "maxUnitsPerInvestor",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
     "type": "function",
@@ -905,6 +946,37 @@ export const upfrontAbi = [
   },
   {
     "type": "event",
+    "name": "Invested",
+    "inputs": [
+      {
+        "name": "id",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "investor",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "units",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "paid",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "ReceivableCancelled",
     "inputs": [
       {
@@ -961,6 +1033,50 @@ export const upfrontAbi = [
         "type": "string",
         "indexed": false,
         "internalType": "string"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "ReceivableFunded",
+    "inputs": [
+      {
+        "name": "id",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "ReceivableListed",
+    "inputs": [
+      {
+        "name": "id",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "discountBps",
+        "type": "uint16",
+        "indexed": false,
+        "internalType": "uint16"
+      },
+      {
+        "name": "unitPrice",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "maxUnitsPerInvestor",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
       }
     ],
     "anonymous": false
@@ -1219,6 +1335,26 @@ export const upfrontAbi = [
   },
   {
     "type": "error",
+    "name": "ExceedsAvailable",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "ExceedsCap",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidCap",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidDiscount",
+    "inputs": []
+  },
+  {
+    "type": "error",
     "name": "InvalidFaceValue",
     "inputs": []
   },
@@ -1232,6 +1368,11 @@ export const upfrontAbi = [
         "internalType": "enum Status"
       }
     ]
+  },
+  {
+    "type": "error",
+    "name": "InvalidUnits",
+    "inputs": []
   },
   {
     "type": "error",
@@ -1258,6 +1399,27 @@ export const upfrontAbi = [
     "type": "error",
     "name": "NotSeller",
     "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "PartyCannotInvest",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "ReentrancyGuardReentrantCall",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "SafeERC20FailedOperation",
+    "inputs": [
+      {
+        "name": "token",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
   },
   {
     "type": "error",
