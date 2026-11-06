@@ -1,23 +1,17 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import {
-  Address,
-  createPublicClient,
-  http,
-  parseAbi,
-  PublicClient,
-} from 'viem';
+import { Address, createPublicClient, http, PublicClient } from 'viem';
+import { upfrontAbi, upfrontAccessAbi } from '../generated/abis.js';
 import { deployments } from '../generated/deployments.js';
 
-// Both contracts expose this. Move to the generated ABIs once they land at V1.
-const versionAbi = parseAbi(['function VERSION() view returns (uint256)']);
 const RPC_TIMEOUT_MS = 3_000;
 
 type Deployment = { upfront?: Address; access?: Address };
 type ChainEntry = { versions: Record<string, Deployment> };
 
 // The highest version deployed on this chain that has the given contract.
-function deployedAddress(chainId: number, key: keyof Deployment) {
+// Version keys can be fractional ("4.5"), so sort numerically.
+export function deployedAddress(chainId: number, key: keyof Deployment) {
   const chains = deployments as unknown as Record<string, ChainEntry>;
   return Object.entries(chains[chainId]?.versions ?? {})
     .sort(([a], [b]) => Number(b) - Number(a))
@@ -54,8 +48,8 @@ export class ChainService {
   // A chain problem shows as null versions. Documents still work without the chain.
   async status() {
     const [upfrontVersion, accessVersion] = await Promise.all([
-      this.readVersion(this.upfront),
-      this.readVersion(this.access),
+      this.readVersion(this.upfront, upfrontAbi),
+      this.readVersion(this.access, upfrontAccessAbi),
     ]);
     return {
       chainId: this.chainId,
@@ -65,12 +59,15 @@ export class ChainService {
     };
   }
 
-  private async readVersion(address: Address | null) {
+  private async readVersion(
+    address: Address | null,
+    abi: typeof upfrontAbi | typeof upfrontAccessAbi,
+  ) {
     if (!address) return null;
     try {
       const version = await this.client.readContract({
         address,
-        abi: versionAbi,
+        abi,
         functionName: 'VERSION',
       });
       return Number(version);

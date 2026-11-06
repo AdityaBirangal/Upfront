@@ -59,14 +59,23 @@ describe('Backend (e2e)', () => {
   });
 
   describe('health', () => {
-    it('stays ok with null versions when nothing is deployed', () => {
-      return request(server()).get('/health').expect(200).expect({
+    it('stays ok with null versions when nothing is deployed', async () => {
+      // A chain with no entry in deployments.json.
+      vi.stubEnv('CHAIN_ID', '999999');
+      const moduleRef = await Test.createTestingModule({
+        imports: [AppModule],
+      }).compile();
+      const bare = moduleRef.createNestApplication<NestExpressApplication>();
+      configureApp(bare);
+      await bare.init();
+      await request(bare.getHttpServer()).get('/health').expect(200).expect({
         ok: true,
-        chainId: 31337,
+        chainId: 999999,
         upfront: null,
         upfrontVersion: null,
         accessVersion: null,
       });
+      await bare.close();
     });
 
     it('stays ok when the RPC is unreachable', async () => {
