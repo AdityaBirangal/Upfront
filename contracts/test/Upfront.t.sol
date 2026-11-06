@@ -2,9 +2,10 @@
 pragma solidity 0.8.30;
 
 import {Test} from "forge-std/Test.sol";
+import {IERC1155Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 import {IERC20Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import {Receivable, Status, Upfront} from "../src/Upfront.sol";
+import {Receivable, Status, TransferBlock, Upfront} from "../src/Upfront.sol";
 import {UpfrontAccess} from "../src/UpfrontAccess.sol";
 import {MockUSDT} from "./mocks/MockUSDT.sol";
 import {FlagThief, ReentrantInvestor} from "./mocks/MaliciousInvestors.sol";
@@ -38,6 +39,7 @@ contract UpfrontTest is Test {
     address buyer = makeAddr("buyer");
     address investor = makeAddr("investor");
     address investor2 = makeAddr("investor2");
+    address investor3 = makeAddr("investor3");
     address stranger = makeAddr("stranger");
 
     UpfrontAccess access;
@@ -56,6 +58,7 @@ contract UpfrontTest is Test {
         access.grantRole(access.BUYER_ROLE(), buyer);
         access.grantRole(access.INVESTOR_ROLE(), investor);
         access.grantRole(access.INVESTOR_ROLE(), investor2);
+        access.grantRole(access.INVESTOR_ROLE(), investor3);
         vm.stopPrank();
 
         _fund(investor);
@@ -1171,29 +1174,30 @@ contract UpfrontTest is Test {
 
     function test_ResalePaysTheNewHolder() public {
         uint256 id = _funded();
+        uint256 start = usdt.balanceOf(investor3);
         vm.prank(investor);
-        upfront.safeTransferFrom(investor, stranger, id, 2, "");
+        upfront.safeTransferFrom(investor, investor3, id, 2, "");
         _settle(id);
 
-        assertEq(usdt.balanceOf(stranger), 2_000_000);
-        assertEq(upfront.balanceOf(stranger, id), 0);
+        assertEq(usdt.balanceOf(investor3), start + 2_000_000);
+        assertEq(upfront.balanceOf(investor3, id), 0);
     }
 
     function test_SellingEverythingLeavesTheHolderList() public {
         uint256 id = _funded();
         vm.prank(investor);
-        upfront.safeTransferFrom(investor, stranger, id, 6, "");
+        upfront.safeTransferFrom(investor, investor3, id, 6, "");
 
         address[] memory holders = upfront.holdersOf(id);
         assertEq(holders.length, 2);
         assertEq(holders[0], investor2);
-        assertEq(holders[1], stranger);
+        assertEq(holders[1], investor3);
     }
 
     function test_ZeroTransferAddsNoHolder() public {
         uint256 id = _funded();
         vm.prank(investor);
-        upfront.safeTransferFrom(investor, stranger, id, 0, "");
+        upfront.safeTransferFrom(investor, investor3, id, 0, "");
 
         assertEq(upfront.holdersOf(id).length, 2);
     }
@@ -1270,5 +1274,187 @@ contract UpfrontTest is Test {
         assertEq(usdt.balanceOf(investor2), startTwo + (10 - units) * profitPerUnit);
         assertEq(usdt.balanceOf(address(upfront)), 0);
         assertEq(upfront.totalSupply(id), 0);
+    }
+
+    // Transfer rules
+
+    function _expectBlocked(TransferBlock reason) private {
+        vm.expectRevert(abi.encodeWithSelector(Upfront.TransferNotAllowed.selector, reason));
+    }
+
+    function _send(address from, address to, uint256 id, uint256 units) private {
+        vm.prank(from);
+        upfront.safeTransferFrom(from, to, id, units, "");
+    }
+
+    function test_TransferBetweenInvestorsWorks() public {
+        uint256 id = _funded();
+        _send(investor, investor2, id, 2);
+
+        assertEq(upfront.balanceOf(investor, id), 4);
+        assertEq(upfront.balanceOf(investor2, id), 6);
+    }
+
+    function test_TransferWhileListedWorks() public {
+        uint256 id = _listed();
+        _invest(investor, id, 6);
+        _send(investor, investor2, id, 3);
+
+        assertEq(upfront.balanceOf(investor2, id), 3);
+    }
+
+    function test_TransferToOutsiderReverts() public {
+        uint256 id = _funded();
+        _expectBlocked(TransferBlock.ReceiverNotInvestor);
+        _send(investor, stranger, id, 1);
+        assertEq(upfront.balanceOf(investor, id), 6);
+    }
+
+    function test_TransferToRevokedInvestorReverts() public {
+        uint256 id = _funded();
+        bytes32 role = access.INVESTOR_ROLE();
+        vm.prank(admin);
+        access.revokeRole(role, investor3);
+
+        _expectBlocked(TransferBlock.ReceiverNotInvestor);
+        _send(investor, investor3, id, 1);
+    }
+
+    function test_TransferToSellerReverts() public {
+        uint256 id = _funded();
+        _expectBlocked(TransferBlock.ReceiverIsParty);
+        _send(investor, seller, id, 1);
+    }
+
+    function test_TransferToBuyerReverts() public {
+        uint256 id = _funded();
+        bytes32 role = access.INVESTOR_ROLE();
+        vm.prank(admin);
+        access.grantRole(role, buyer);
+
+        _expectBlocked(TransferBlock.ReceiverIsParty);
+        _send(investor, buyer, id, 1);
+    }
+
+    function test_TransferOverCapReverts() public {
+        uint256 id = _funded();
+        _expectBlocked(TransferBlock.OverCap);
+        _send(investor, investor2, id, 3); // holds 4, cap 6
+        assertEq(upfront.balanceOf(investor2, id), 4);
+    }
+
+    function test_TransferUpToCapWorks() public {
+        uint256 id = _funded();
+        _send(investor, investor2, id, 2);
+        assertEq(upfront.balanceOf(investor2, id), CAP);
+    }
+
+    function test_TransferAtDueDateReverts() public {
+        uint256 id = _funded();
+        vm.warp(dueDate);
+        _expectBlocked(TransferBlock.PastDueDate);
+        _send(investor, investor2, id, 1);
+    }
+
+    function test_TransferAfterDefaultReverts() public {
+        uint256 id = _funded();
+        vm.warp(dueDate);
+        upfront.markDefault(id);
+
+        _expectBlocked(TransferBlock.ReceivableNotActive);
+        _send(investor, investor2, id, 1);
+    }
+
+    function test_InvestorCanStillBuyAfterSellingWithinCap() public {
+        uint256 id = _listed();
+        _invest(investor, id, 6);
+        _send(investor, investor3, id, 6);
+        _invest(investor, id, 4);
+
+        assertEq(upfront.balanceOf(investor, id), 4);
+        assertEq(upfront.balanceOf(investor3, id), 6);
+    }
+
+    function test_BatchFollowsTheRules() public {
+        uint256 id = _funded();
+        uint256[] memory ids = new uint256[](1);
+        uint256[] memory values = new uint256[](1);
+        ids[0] = id;
+        values[0] = 1;
+
+        _expectBlocked(TransferBlock.ReceiverNotInvestor);
+        vm.prank(investor);
+        upfront.safeBatchTransferFrom(investor, stranger, ids, values, "");
+    }
+
+    function test_BatchRepeatingAnIdCannotPassTheCap() public {
+        uint256 id = _funded();
+        uint256[] memory ids = new uint256[](2);
+        uint256[] memory values = new uint256[](2);
+        ids[0] = id;
+        ids[1] = id;
+        values[0] = 2; // 4 + 2 is within the cap alone
+        values[1] = 2; // and so is this, but the total isn't
+
+        _expectBlocked(TransferBlock.OverCap);
+        vm.prank(investor);
+        upfront.safeBatchTransferFrom(investor, investor2, ids, values, "");
+    }
+
+    function test_ApprovedOperatorFollowsTheRules() public {
+        uint256 id = _funded();
+        vm.prank(investor);
+        upfront.setApprovalForAll(stranger, true);
+
+        _expectBlocked(TransferBlock.ReceiverNotInvestor);
+        vm.prank(stranger);
+        upfront.safeTransferFrom(investor, stranger, id, 1, "");
+
+        vm.prank(stranger);
+        upfront.safeTransferFrom(investor, investor3, id, 1, "");
+        assertEq(upfront.balanceOf(investor3, id), 1);
+    }
+
+    // R13
+
+    /// @dev Every external function, and why it gives the Admin no power over funds or an existing
+    /// receivable. Holding DEFAULT_ADMIN_ROLE changes nothing in `Upfront`, because no function checks it.
+    /// createReceivable, listReceivable: need the Seller role, and act only on the caller's own new
+    ///   receivable. The Admin could grant itself that role, but only to create a new one.
+    /// verifyReceivable, rejectReceivable: named buyer only.
+    /// cancelReceivable, settle: named seller only.
+    /// invest: spends only the caller's own USDT.
+    /// markDefault: open to anyone, but only after the due date, if unsettled.
+    /// safeTransferFrom, safeBatchTransferFrom: need the holder or its approved operator.
+    /// setApprovalForAll: sets only the caller's own approvals.
+    /// There's no owner function, no mint or burn entry point, and no way to pull USDT.
+    function test_AdminHasNoPowerOverReceivablesOrFunds() public {
+        uint256 id = _funded();
+        vm.startPrank(admin);
+
+        vm.expectRevert(Upfront.NotSeller.selector);
+        upfront.settle(id);
+
+        vm.expectRevert(Upfront.NotSeller.selector);
+        upfront.cancelReceivable(id);
+
+        vm.expectRevert(Upfront.NotSeller.selector);
+        upfront.listReceivable(id, DISCOUNT, CAP);
+
+        vm.expectRevert(Upfront.NotBuyer.selector);
+        upfront.verifyReceivable(id);
+
+        vm.expectRevert(Upfront.NotBuyer.selector);
+        upfront.rejectReceivable(id);
+
+        vm.expectRevert(abi.encodeWithSelector(IERC1155Errors.ERC1155MissingApprovalForAll.selector, admin, investor));
+        upfront.safeTransferFrom(investor, admin, id, 1, "");
+
+        vm.expectRevert(Upfront.NotDue.selector);
+        upfront.markDefault(id);
+        vm.stopPrank();
+
+        assertEq(upfront.balanceOf(investor, id), 6);
+        assertEq(uint8(upfront.getReceivable(id).status), uint8(Status.Funded));
     }
 }
