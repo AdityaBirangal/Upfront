@@ -18,7 +18,6 @@ import ReceivableNote from '@/components/landing/ReceivableNote.tsx'
 import Rules from '@/components/landing/Rules.tsx'
 import { Eyebrow, LiveDot, SectionHead, WRAP } from '@/components/landing/kit.tsx'
 import { explorerTxUrl } from '@/contracts.ts'
-import { useTheme } from '@/lib/theme.ts'
 import { cn } from '@/lib/utils'
 
 /** The demo run's settlement: one transaction paying both investors. */
@@ -68,7 +67,6 @@ const STEPS: { role: Role; title: string; body: string }[] = [
 ]
 
 function Home() {
-  const { resolved } = useTheme()
   const { hash } = useLocation()
 
   // Arriving from another page with a section hash: scroll once the section has rendered.
@@ -82,10 +80,10 @@ function Home() {
 
       <main className="flex-1">
         {/*
-          Hero: the site the money builds. Always dark, so the night footage reads in both themes.
+          Hero: the site the money builds, by day in light mode and at blue hour in dark mode.
           The thesis on the left and the receivable on the right, with the footage behind both.
         */}
-        <section className="dark bg-background text-foreground relative">
+        <section className="bg-background text-foreground relative">
           <HeroBackdrop />
           <div
             className={`${WRAP} relative grid items-center gap-14 pt-14 pb-20 md:pt-20 lg:grid-cols-[minmax(0,1fr)_minmax(0,29rem)] lg:gap-16 lg:pt-24 lg:pb-32`}
@@ -101,10 +99,10 @@ function Home() {
                 <span className="text-foreground">See the numbers</span>
                 <ArrowRight className="size-3" aria-hidden />
               </a>
-              <h1 className="text-[2.75rem] leading-[1.02] font-semibold tracking-[-0.045em] text-balance sm:text-6xl lg:text-[4.25rem]">
+              <h1 className="text-[2.75rem] leading-[1.02] font-semibold tracking-[-0.045em] text-balance [text-shadow:0_0_24px_var(--background),0_0_8px_var(--background)] sm:text-6xl lg:text-[4.25rem]">
                 Big contracts shouldn’t wait <span className="text-muted-foreground">for big banks.</span>
               </h1>
-              <p className="text-muted-foreground max-w-xl text-lg leading-relaxed text-pretty">
+              <p className="text-foreground/80 max-w-xl text-lg leading-relaxed text-pretty [text-shadow:0_0_14px_var(--background),0_0_6px_var(--background),0_0_2px_var(--background)]">
                 Upfront turns a signed project agreement into funding. Sell units of the repayment to approved investors
                 at a discount, and get USDT today. When the seller settles, one transaction pays every holder.
               </p>
@@ -115,8 +113,7 @@ function Home() {
                 </Button>
               </div>
             </div>
-            {/* The hero is always dark; the card follows the page theme, so it's white in light mode. */}
-            <ReceivableNote className={resolved === 'light' ? 'light' : undefined} />
+            <ReceivableNote />
           </div>
         </section>
 
@@ -149,14 +146,14 @@ function Home() {
           </div>
         </section>
 
-        {/* How it works. */}
+        {/* How we fix it: the answer to the problem above. */}
         <section id="how" aria-labelledby="how-title" className="bg-muted/40 scroll-mt-16 border-y">
           <div className={`${WRAP} py-24 md:py-32`}>
             <SectionHead
               id="how-title"
-              eyebrow="How it works"
-              title="From signed agreement to USDT, in five steps"
-              lede="Each step is a transaction on Whitechain, signed from the wallet of the party it belongs to."
+              eyebrow="How we fix it"
+              title="The signed contract raises the money. No bank, no collateral."
+              lede="The builder sells units of what the client will pay, gets USDT within minutes of a sale, and anyone approved can invest. Five steps, each a transaction on Whitechain signed from the wallet of the party it belongs to."
             />
             <div className="bg-card mt-12 rounded-2xl border p-4 shadow-xs md:p-8">
               <FlowAnimation />
@@ -212,6 +209,10 @@ function Home() {
                 <p className="text-band-foreground/80 text-lg leading-relaxed text-pretty md:text-xl">
                   An investor presents a passport credential through World ID. If it isn’t from an OFAC-sanctioned
                   country, their wallet joins as an investor, and Upfront never sees the passport.
+                </p>
+                <p className="border-band-foreground/30 text-band-foreground/70 border-l-2 pl-4 text-sm leading-relaxed text-pretty md:text-base">
+                  For regulated deals, we intend to add World ID’s nationality check as one input to sanctions screening.
+                  It’s in preview today, so we didn’t build it.
                 </p>
                 <Link
                   to="/future#kyc"

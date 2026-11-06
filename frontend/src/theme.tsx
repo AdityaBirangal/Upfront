@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { flushSync } from 'react-dom'
 import type { ReactNode } from 'react'
 
 import { ThemeContext } from '@/lib/theme.ts'
@@ -24,7 +25,16 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, [theme])
 
   function setTheme(next: Theme) {
-    setThemeState(next)
+    const apply = () => {
+      // Synchronous, so the transition's "after" snapshot already has the new theme.
+      flushSync(() => setThemeState(next))
+      document.documentElement.classList.toggle('dark', next === 'dark')
+    }
+    // A slow crossfade of the whole page, so the hero footage morphs from day to night.
+    // Browsers without view transitions, or with reduced motion, switch at once.
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (next !== theme && !reduced && document.startViewTransition) document.startViewTransition(apply)
+    else apply()
     try {
       localStorage.setItem(STORAGE_KEY, next)
     } catch {
