@@ -59,7 +59,7 @@ function Buyer({ wallet }: Props) {
     <>
       <PageHeader
         title="Verify"
-        description="Receivables that name this wallet as the buyer. Open the agreement, then Verify to confirm you owe the amount, so investors see a Verified tag. Reject closes one you don’t recognise, as long as it isn’t verified and no units are sold."
+        description="Receivables that name this wallet as the buyer. Open the contract, then Verify to confirm it’s genuine and you owe the amount, so investors see a Verified tag. Reject closes one you don’t recognise, as long as it isn’t verified and no units are sold."
       />
       <Tabs value={tab} onValueChange={(value) => setTab(value as 'review' | 'all')} className="mb-4">
         <TabsList>

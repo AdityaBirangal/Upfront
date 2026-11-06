@@ -13,6 +13,7 @@ import { LifecycleTrack } from '@/components/Lifecycle.tsx'
 import Payment from '@/components/Payment.tsx'
 import Section from '@/components/Section.tsx'
 import StatusBadge from '@/components/StatusBadge.tsx'
+import Timeline from '@/components/Timeline.tsx'
 import Usdt from '@/components/Usdt.tsx'
 import VerifiedTag from '@/components/VerifiedTag.tsx'
 import { upfront } from '@/contracts.ts'
@@ -89,6 +90,7 @@ function Detail({ r }: { r: Receivable }) {
           </Section>
           {listed && <Funding receivable={r} />}
           {r.status !== 'Rejected' && r.status !== 'Cancelled' && r.status !== 'None' && <Payment receivable={r} />}
+          <Timeline id={r.id} />
         </div>
 
         <aside className="space-y-6 lg:sticky lg:top-20">
@@ -108,7 +110,7 @@ function Detail({ r }: { r: Receivable }) {
               </div>
             </dl>
           </Section>
-          <Section title="Agreement">
+          <Section title="Contract">
             <div className="space-y-3">
               <div>
                 <p className="text-muted-foreground text-xs">Document hash (SHA-256)</p>

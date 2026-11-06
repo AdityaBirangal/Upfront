@@ -188,3 +188,14 @@ export function formatDuration(totalSeconds: bigint): string {
   if (hours > 0) return `${hours}h ${minutes}m`
   return `${minutes}m ${secs.toString().padStart(2, '0')}s`
 }
+
+/** Whole percent of the units sold, rounded down so 99.9% never shows as 100%. */
+export function soldPercent(r: Receivable): number {
+  return r.totalUnits > 0n ? Number((r.unitsSold * 100n) / r.totalUnits) : 0
+}
+
+/** One wallet's share of all the units, as a percent with up to one decimal. */
+export function sharePercent(units: bigint, totalUnits: bigint): string {
+  if (totalUnits === 0n) return '0%'
+  return `${(Number((units * 1000n) / totalUnits) / 10).toLocaleString([], { maximumFractionDigits: 1 })}%`
+}

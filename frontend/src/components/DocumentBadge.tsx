@@ -76,7 +76,7 @@ function DocumentBadge({ docHash }: Props) {
         {check.data === 'match' && (
           <Button variant="link" size="sm" className="mt-1 h-auto p-0" asChild>
             <a href={documentUrl(docHash)} target="_blank" rel="noreferrer">
-              Open agreement PDF
+              Open contract PDF
             </a>
           </Button>
         )}

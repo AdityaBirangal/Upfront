@@ -66,7 +66,7 @@ function TransferForm({ wallet, holdings }: Props) {
 
   return (
     <form onSubmit={send} noValidate className="space-y-3">
-      <fieldset disabled={tx.busy} className="grid gap-3 sm:grid-cols-[1fr_1.4fr_8rem_auto] sm:items-end">
+      <fieldset disabled={tx.busy} className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-[1fr_1.4fr_8rem_auto] sm:items-end">
         <div className="grid gap-1.5">
           <Label htmlFor={`${id}-receivable`}>Receivable</Label>
           <Select value={holding?.receivable.id.toString() ?? ''} onValueChange={setChosen}>

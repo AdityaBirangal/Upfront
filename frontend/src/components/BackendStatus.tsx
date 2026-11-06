@@ -60,7 +60,7 @@ function BackendStatus({ className }: { className?: string }) {
       </TooltipTrigger>
       <TooltipContent>
         {state === 'online'
-          ? 'The document service is up. Agreements can be uploaded and opened.'
+          ? 'The document service is up. Contracts can be uploaded and opened.'
           : state === 'not configured'
             ? 'VITE_BACKEND_URL is not set, so documents are unavailable.'
             : state === 'checking'

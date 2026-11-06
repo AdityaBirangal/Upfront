@@ -4,7 +4,7 @@ import type { Hash } from 'viem'
 import { TableCell, TableRow } from '@/components/ui/table'
 import { explorerTxUrl } from '@/contracts.ts'
 import { cn } from '@/lib/utils'
-import { formatDuration, unitValue } from '@/receivables.ts'
+import { formatDuration, sharePercent, unitValue } from '@/receivables.ts'
 import type { Receivable } from '@/receivables.ts'
 import StatusBadge from './StatusBadge.tsx'
 import Usdt from './Usdt.tsx'
@@ -44,7 +44,12 @@ function HoldingRow({ receivable, units, paid, repaid, now }: Props) {
       <TableCell>
         <StatusBadge status={receivable.status} />
       </TableCell>
-      <TableCell className="tabular text-right">{shownUnits.toLocaleString()}</TableCell>
+      <TableCell className="tabular text-right">
+        {shownUnits.toLocaleString()}
+        <p className="text-muted-foreground text-xs">
+          {sharePercent(shownUnits, receivable.totalUnits)} share
+        </p>
+      </TableCell>
       <TableCell className="text-right">
         {paid === undefined ? <span className="text-muted-foreground">…</span> : <Usdt value={paid} />}
       </TableCell>

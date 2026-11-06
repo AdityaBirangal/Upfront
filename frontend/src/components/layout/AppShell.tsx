@@ -8,6 +8,7 @@ import NetworkBanner from '../NetworkBanner.tsx'
 import ThemeToggle from '../ThemeToggle.tsx'
 import WalletMenu from '../WalletMenu.tsx'
 import SideNav, { Logo, NavLinks, NetworkFooter } from './SideNav.tsx'
+import SiteFooter from './SiteFooter.tsx'
 
 function MobileNav() {
   const [open, setOpen] = useState(false)
@@ -59,6 +60,7 @@ function AppShell() {
         <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 md:px-6 lg:px-8">
           <Outlet />
         </main>
+        <SiteFooter />
       </div>
     </div>
   )

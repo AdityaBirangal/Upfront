@@ -8,6 +8,7 @@ import { Clock, FileCheck2, FilePlus2, FileUp, Sparkles, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import ErrorNote from '@/components/ErrorNote.tsx'
 import ListForm from '@/components/ListForm.tsx'
 import PageHeader from '@/components/PageHeader.tsx'
@@ -38,16 +39,16 @@ const SAMPLE_PDF = 'sample-agreement.pdf'
 
 type Step = 'idle' | 'active' | 'done' | 'failed'
 
-// datetime-local wants local time as YYYY-MM-DDTHH:mm.
+// datetime-local wants local time as YYYY-MM-DDTHH:mm:ss (seconds, because of step={1}).
 function localInputValue(date: Date) {
   const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
-  return local.toISOString().slice(0, 16)
+  return local.toISOString().slice(0, 19)
 }
 
-/** Ten whole minutes from now, rounded up to the minute the input can show. */
-function tenMinutesFromNow() {
-  const date = new Date(Date.now() + 10 * 60_000)
-  date.setSeconds(60, 0)
+/** 2 minutes from now, to the second, so a demo reaches the due date quickly. */
+function twoMinutesFromNow() {
+  const date = new Date(Date.now() + 120_000)
+  date.setMilliseconds(0)
   return localInputValue(date)
 }
 
@@ -74,6 +75,7 @@ function Seller({ wallet }: Props) {
   const latestFile = useRef<File | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
   const tx = useTx()
+  const [chosenTab, setTab] = useState<'create' | 'existing'>()
 
   const unit = useReadContract({ ...upfront, functionName: 'UNIT' })
   const { receivables, isPending, isError } = useReceivables()
@@ -81,6 +83,8 @@ function Seller({ wallet }: Props) {
     .filter((r) => isAddressEqual(r.seller, wallet))
     .reverse()
   const now = useNow()
+  // Open on the list once there is something in it, otherwise on the form.
+  const tab = chosenTab ?? (isPending || mine.length > 0 ? 'existing' : 'create')
   // Settle pulls the repayment from this wallet, so it needs the balance and the approval.
   const money = useReadContracts({
     allowFailure: false,
@@ -139,7 +143,7 @@ function Seller({ wallet }: Props) {
   }
 
   function formProblem(buyerAddress: string, due: number) {
-    if (!ref.trim()) return 'Enter a reference.'
+    if (!ref.trim()) return 'Enter a contract reference.'
     if (!WALLET_ADDRESS.test(buyerAddress)) {
       return 'Enter a valid buyer address (0x followed by 40 hex characters).'
     }
@@ -150,7 +154,7 @@ function Seller({ wallet }: Props) {
       return 'Enter the amount as a whole number of USDT.'
     }
     if (!(due > Date.now())) return 'Choose a due date in the future.'
-    if (!docFile || !docHash) return 'Choose the agreement PDF.'
+    if (!docFile || !docHash) return 'Choose the signed contract PDF.'
     if (unit.data === undefined) {
       return "Couldn't read the unit size from the chain. Try again."
     }
@@ -251,7 +255,7 @@ function Seller({ wallet }: Props) {
     <>
       <PageHeader
         title="Sell"
-        description="Turn an invoice into a receivable, list it for investors at a discount, and repay every holder before the due date."
+        description="Turn a signed contract into a receivable, list it for investors at a discount, and repay every holder before the due date."
         actions={
           <dl className="flex gap-6 text-sm">
             <div>
@@ -270,25 +274,36 @@ function Seller({ wallet }: Props) {
         }
       />
 
-      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
-        <section aria-labelledby="new-receivable" className="bg-card rounded-xl border lg:sticky lg:top-20">
+      <Tabs value={tab} onValueChange={(value) => setTab(value as 'create' | 'existing')}>
+        <TabsList className="mb-4">
+          <TabsTrigger value="existing">
+            Your receivables <span className="text-muted-foreground tabular ml-1">{mine.length}</span>
+          </TabsTrigger>
+          <TabsTrigger value="create">
+            <FilePlus2 aria-hidden />
+            Create
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="create" forceMount className="data-[state=inactive]:hidden">
+        <section aria-labelledby="new-receivable" className="bg-card max-w-xl rounded-xl border">
           <div className="border-b px-5 py-4">
             <h2 id="new-receivable" className="font-semibold tracking-tight">
               New receivable
             </h2>
             <p className="text-muted-foreground mt-0.5 text-sm">
-              The agreement is stored off-chain. Its hash goes onchain.
+              The signed contract is stored offchain. Only its hash goes onchain.
             </p>
           </div>
           <form onSubmit={create} noValidate className="p-5">
-            <fieldset disabled={busy} className="grid gap-4">
+            <fieldset disabled={busy} className="grid min-w-0 grid-cols-1 gap-4">
               <div className="grid gap-1.5">
-                <Label htmlFor="ref">Reference</Label>
+                <Label htmlFor="ref">Contract reference</Label>
                 <Input
                   id="ref"
                   value={ref}
                   onChange={(event) => setRef(event.target.value)}
-                  placeholder="INV-1001"
+                  placeholder="RCV-1001"
                   autoComplete="off"
                 />
               </div>
@@ -331,15 +346,16 @@ function Seller({ wallet }: Props) {
                   <button
                     type="button"
                     className="text-primary inline-flex items-center gap-1 text-xs font-medium hover:underline"
-                    onClick={() => setDueDate(tenMinutesFromNow())}
+                    onClick={() => setDueDate(twoMinutesFromNow())}
                   >
                     <Clock className="size-3" aria-hidden />
-                    In 10 minutes (demo)
+                    In 2 minutes (demo)
                   </button>
                 </div>
                 <Input
                   id="due"
                   type="datetime-local"
+                  step={1}
                   value={dueDate}
                   onChange={(event) => setDueDate(event.target.value)}
                   className="tabular"
@@ -348,7 +364,7 @@ function Seller({ wallet }: Props) {
 
               <div className="grid gap-1.5">
                 <span className="text-sm leading-none font-medium select-none" id="doc-label">
-                  Agreement PDF
+                  Signed contract (PDF)
                 </span>
                 <input
                   ref={fileInput}
@@ -360,7 +376,7 @@ function Seller({ wallet }: Props) {
                   aria-labelledby="doc-label"
                 />
                 {docFile && docHash ? (
-                  <div className="border-state-settled/30 bg-state-settled/5 flex items-start gap-3 rounded-lg border p-3">
+                  <div className="border-state-settled/30 bg-state-settled/5 flex min-w-0 items-start gap-3 rounded-lg border p-3">
                     <FileCheck2 className="text-state-settled mt-0.5 size-4 shrink-0" aria-hidden />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">{docFile.name}</p>
@@ -429,31 +445,30 @@ function Seller({ wallet }: Props) {
                           {upload === 'failed' ? 'Not sent.' : 'Waiting for the upload.'}
                         </p>
                       ) : (
-                        <TxStatus tx={tx} done="Created. List it below when you’re ready." />
+                        <TxStatus tx={tx} done="Created. List it for investors from Your receivables." />
                       ),
                   },
                 ]}
               />
             )}
+            {tx.phase === 'confirmed' && (
+              <Button type="button" variant="outline" className="mt-4 w-full" onClick={() => setTab('existing')}>
+                Go to Your receivables
+              </Button>
+            )}
           </form>
         </section>
+        </TabsContent>
 
-        <section aria-labelledby="my-receivables" className="min-w-0 space-y-3">
-          <div className="flex items-baseline justify-between gap-2">
-            <h2 id="my-receivables" className="font-semibold tracking-tight">
-              Your receivables
-            </h2>
-            {mine.length > 0 && (
-              <span className="text-muted-foreground tabular text-sm">{mine.length}</span>
-            )}
-          </div>
+        <TabsContent value="existing" className="min-w-0">
           <ReceivableList
             receivables={mine}
             isPending={isPending}
             isError={isError}
+            columns={2}
             empty={{
               title: 'No receivables yet',
-              body: 'Create one with the form. It appears here, ready to list for investors.',
+              body: 'Create one from a signed contract in the Create tab. It appears here, ready to list for investors.',
             }}
             extra={(receivable) => (
               <>
@@ -487,8 +502,8 @@ function Seller({ wallet }: Props) {
               </>
             )}
           />
-        </section>
-      </div>
+        </TabsContent>
+      </Tabs>
     </>
   )
 }

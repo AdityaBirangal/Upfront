@@ -8,6 +8,7 @@ const UPLOAD_ERRORS: Record<string, string> = {
   too_large: 'The PDF is too large for the backend.',
   invalid_hash: 'The document hash is not valid.',
   missing_file: 'The document was not sent. Choose the file again.',
+  rate_limited: 'Too many uploads from this network. Wait a few minutes, then try again.',
 }
 
 export function documentUrl(hash: Hex): string {

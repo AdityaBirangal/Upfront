@@ -79,7 +79,7 @@ function ListForm({ receivable }: Props) {
       {listable && (
         <form onSubmit={list} noValidate className="space-y-3">
           <p className="text-sm font-medium">List for investors</p>
-          <fieldset disabled={tx.busy} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+          <fieldset disabled={tx.busy} className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
             <div className="grid gap-1.5">
               <Label htmlFor={`${id}-discount`}>Discount (%)</Label>
               <Input

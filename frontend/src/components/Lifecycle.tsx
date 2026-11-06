@@ -1,17 +1,26 @@
 import { cn } from '@/lib/utils'
-import { formatDate, formatDuration } from '@/receivables.ts'
+import { formatDate, formatDuration, soldPercent } from '@/receivables.ts'
 import type { Receivable } from '@/receivables.ts'
 
-type StageState = 'done' | 'current' | 'upcoming' | 'skipped' | 'failed' | 'closed'
-type Stage = { label: string; state: StageState }
+type StageState = 'done' | 'current' | 'partial' | 'upcoming' | 'skipped' | 'failed' | 'closed'
+/** `fill` is the percent of the bar filled, for a partly funded stage. */
+type Stage = { label: string; state: StageState; fill?: number }
+
+/** The Funded stage: full when every unit sold, part-filled when some did, else `none`. */
+function fundedStage(r: Receivable, none: StageState): Stage {
+  const percent = soldPercent(r)
+  if (r.totalUnits > 0n && r.unitsSold === r.totalUnits) return { label: 'Funded', state: 'done' }
+  if (r.unitsSold > 0n) return { label: `${percent}% funded`, state: 'partial', fill: percent }
+  return { label: 'Funded', state: none }
+}
 
 /**
- * Where a receivable is in its life: Created, Listed, Funded, then Settled. A receivable can
- * settle before it's fully funded, and can end early as Defaulted, Rejected or Cancelled.
+ * Where a receivable is in its life: Created, Listed, Funded, then Settled. Funded fills by the
+ * share of units sold, because a receivable can settle partly funded. It can also end early as
+ * Defaulted, Rejected or Cancelled.
  */
 function stagesFor(r: Receivable): Stage[] {
   const wasListed = r.unitPrice > 0n
-  const fullySold = r.totalUnits > 0n && r.unitsSold === r.totalUnits
   switch (r.status) {
     case 'Created':
       return [
@@ -24,7 +33,7 @@ function stagesFor(r: Receivable): Stage[] {
       return [
         { label: 'Created', state: 'done' },
         { label: 'Listed', state: 'current' },
-        { label: 'Funded', state: 'upcoming' },
+        fundedStage(r, 'upcoming'),
         { label: 'Settled', state: 'upcoming' },
       ]
     case 'Funded':
@@ -39,7 +48,7 @@ function stagesFor(r: Receivable): Stage[] {
       return [
         { label: 'Created', state: 'done' },
         { label: 'Listed', state: 'done' },
-        { label: 'Funded', state: fullySold ? 'done' : 'skipped' },
+        fundedStage(r, 'skipped'),
         r.status === 'Settled'
           ? { label: 'Settled', state: 'done' }
           : { label: 'Defaulted', state: 'failed' },
@@ -60,6 +69,7 @@ function stagesFor(r: Receivable): Stage[] {
 const BAR: Record<StageState, string> = {
   done: 'bg-primary',
   current: 'bg-primary',
+  partial: 'bg-border',
   upcoming: 'bg-border',
   skipped: 'bg-[repeating-linear-gradient(90deg,var(--border)_0_4px,transparent_4px_7px)]',
   failed: 'bg-state-defaulted',
@@ -69,6 +79,7 @@ const BAR: Record<StageState, string> = {
 const LABEL: Record<StageState, string> = {
   done: 'text-foreground',
   current: 'text-primary font-medium',
+  partial: 'text-foreground',
   upcoming: 'text-muted-foreground',
   skipped: 'text-muted-foreground/70 line-through decoration-1',
   failed: 'text-state-defaulted font-medium',
@@ -88,12 +99,19 @@ export function LifecycleTrack({ receivable, className }: { receivable: Receivab
         <li key={stage.label} className="min-w-0">
           <span
             className={cn(
-              'block h-1.5 rounded-full',
+              'block h-1.5 overflow-hidden rounded-full',
               BAR[stage.state],
               settled && stage.state === 'done' && 'bg-state-settled',
             )}
             aria-hidden
-          />
+          >
+            {stage.fill !== undefined && (
+              <span
+                className={cn('block h-full rounded-full', settled ? 'bg-state-settled' : 'bg-primary')}
+                style={{ width: `${stage.fill}%` }}
+              />
+            )}
+          </span>
           <span
             className={cn(
               'mt-1.5 block truncate text-[0.6875rem] leading-none',

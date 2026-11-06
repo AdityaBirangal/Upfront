@@ -159,7 +159,7 @@ function AdminRoles() {
     <>
       <PageHeader
         title="Roles"
-        description="Who can sell, verify, invest and administer. Roles live in the access contract, so every change is a transaction."
+        description="Who can sell, verify, invest and administer. Roles live in the access contract, so every change is a transaction. In this demo, an admin granting a role stands in for real business checks (KYB)."
       />
 
       {accessNote && (
@@ -172,7 +172,7 @@ function AdminRoles() {
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
         <Section title="Assign a role">
           <form onSubmit={assign} noValidate>
-            <fieldset disabled={!isAdmin || tx.busy} className="grid gap-4">
+            <fieldset disabled={!isAdmin || tx.busy} className="grid min-w-0 grid-cols-1 gap-4">
               <div className="grid gap-1.5">
                 <Label htmlFor="wallet">Wallet address</Label>
                 <Input

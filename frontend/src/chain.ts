@@ -171,3 +171,68 @@ export function useHolderPayments(filter: { id?: bigint; holder?: Address }) {
     },
   })
 }
+
+export type TimelineEvent = {
+  /** The event's name in the Upfront ABI. */
+  name: string
+  args: Record<string, unknown>
+  txHash: Hash
+  blockNumber: bigint
+  logIndex: number
+  /** Block time in Unix seconds, if the block could be read. */
+  timestamp: bigint | undefined
+}
+
+/**
+ * Every event for one receivable, oldest first, with block times. Includes transfers between
+ * holders, but not the token moves behind create, invest and settle.
+ */
+export function useTimeline(id: bigint) {
+  const client = usePublicClient({ chainId: upfront.chainId })
+
+  return useQuery({
+    queryKey: ['timeline', upfront.address, id.toString()],
+    enabled: Boolean(client),
+    queryFn: async (): Promise<TimelineEvent[]> => {
+      if (!client) return []
+      const logs = await readInChunks(client, (fromBlock, toBlock) =>
+        client.getContractEvents({ address: upfront.address, abi: upfront.abi, fromBlock, toBlock }),
+      )
+      const ofId = logs.filter((log) => (log.args as Record<string, unknown>).id === id)
+      const created = ofId.find((log) => log.eventName === 'ReceivableCreated')
+      const seller = (created?.args as Record<string, unknown> | undefined)?.seller
+      // Mints and burns have a zero side, and moves out of the seller are `invest`, which has its
+      // own event. What's left are transfers between holders.
+      const mine = ofId.filter((log) => {
+        if (log.eventName !== 'TransferSingle') return true
+        const { from, to } = log.args as Record<string, unknown>
+        return from !== zeroAddress && to !== zeroAddress && from !== seller
+      })
+
+      const blocks = [...new Set(mine.map((log) => log.blockNumber))]
+      const times = new Map<bigint, bigint>()
+      await Promise.all(
+        blocks.map(async (blockNumber) => {
+          try {
+            times.set(blockNumber, (await client.getBlock({ blockNumber })).timestamp)
+          } catch {
+            // Times are a nicety. The event still shows without one.
+          }
+        }),
+      )
+
+      return mine
+        .map((log) => ({
+          name: log.eventName,
+          args: log.args as Record<string, unknown>,
+          txHash: log.transactionHash,
+          blockNumber: log.blockNumber,
+          logIndex: log.logIndex,
+          timestamp: times.get(log.blockNumber),
+        }))
+        .sort((a, b) =>
+          a.blockNumber === b.blockNumber ? a.logIndex - b.logIndex : a.blockNumber < b.blockNumber ? -1 : 1,
+        )
+    },
+  })
+}

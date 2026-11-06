@@ -5,6 +5,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useInvestments } from '@/chain.ts'
 import { explorerTxUrl } from '@/contracts.ts'
+import { soldPercent } from '@/receivables.ts'
 import type { Receivable } from '@/receivables.ts'
 import Address from './Address.tsx'
 import ErrorNote from './ErrorNote.tsx'
@@ -19,7 +20,7 @@ type Props = {
 function Funding({ receivable }: Props) {
   const investments = useInvestments({ id: receivable.id })
   const { unitsSold, totalUnits } = receivable
-  const percent = totalUnits > 0n ? Number((unitsSold * 100n) / totalUnits) : 0
+  const percent = soldPercent(receivable)
 
   const holders = new Map<AddressType, { units: bigint; paid: bigint }>()
   for (const investment of investments.data ?? []) {

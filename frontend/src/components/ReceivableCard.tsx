@@ -2,7 +2,8 @@ import { FileText } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router'
 import { BACKEND_URL, documentUrl } from '@/backend.ts'
-import { formatDate, formatPercent, returnPercent, unitValue } from '@/receivables.ts'
+import { Progress } from '@/components/ui/progress'
+import { formatDate, formatPercent, returnPercent, soldPercent, unitValue } from '@/receivables.ts'
 import type { Receivable } from '@/receivables.ts'
 import { useNow } from '@/useNow.ts'
 import Address from './Address.tsx'
@@ -64,10 +65,12 @@ function ReceivableCard({ receivable: r, party = 'buyer', children }: Props) {
                   {formatPercent(r.discountBps)} off
                 </span>
               </Stat>
-              <Stat label="Units sold">
-                <span className="tabular">
-                  {r.unitsSold.toLocaleString()} / {r.totalUnits.toLocaleString()}
+              <Stat label="Sold">
+                <span className="tabular">{soldPercent(r)}%</span>
+                <span className="text-muted-foreground tabular ml-1 text-xs font-normal">
+                  {r.unitsSold.toLocaleString()} / {r.totalUnits.toLocaleString()} units
                 </span>
+                <Progress value={soldPercent(r)} aria-label="Share of units sold" className="mt-1.5 h-1" />
               </Stat>
             </>
           ) : (
@@ -102,7 +105,7 @@ function ReceivableCard({ receivable: r, party = 'buyer', children }: Props) {
             className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5"
           >
             <FileText className="size-3.5" aria-hidden />
-            Agreement PDF
+            Contract PDF
           </a>
         )}
       </div>

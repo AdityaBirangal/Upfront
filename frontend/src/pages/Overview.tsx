@@ -206,7 +206,7 @@ function Overview() {
     <>
       <PageHeader
         title="Overview"
-        description="Sellers turn invoices into receivables, buyers confirm them, and investors buy units at a discount. Each unit repays 1 USDT."
+        description="Sellers turn signed contracts into receivables, buyers confirm them, and investors buy units at a discount. Each unit repays 1 USDT."
       />
       <div className="space-y-10">
         <Workspaces />

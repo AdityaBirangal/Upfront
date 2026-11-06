@@ -27,7 +27,13 @@ type Props = {
 function Invest({ wallet }: Props) {
   const [tab, setTab] = useState<'market' | 'portfolio'>('market')
   const { receivables, isPending, isError } = useReceivables()
-  const listed = receivables.filter((r) => r.status === 'Listed').reverse()
+  const [sort, setSort] = useState<'newest' | 'return'>('newest')
+  const newest = receivables.filter((r) => r.status === 'Listed').reverse()
+  // A lower unit price pays a higher return at settlement.
+  const listed =
+    sort === 'return'
+      ? [...newest].sort((a, b) => (a.unitPrice === b.unitPrice ? 0 : a.unitPrice < b.unitPrice ? -1 : 1))
+      : newest
 
   const balances = useReadContract({
     ...upfront,
@@ -119,7 +125,18 @@ function Invest({ wallet }: Props) {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="market">
+        <TabsContent value="market" className="space-y-3">
+          {newest.length > 1 && (
+            <div className="flex items-center justify-end gap-2 text-sm">
+              <span className="text-muted-foreground">Sort by</span>
+              <Tabs value={sort} onValueChange={(value) => setSort(value as 'newest' | 'return')}>
+                <TabsList>
+                  <TabsTrigger value="newest">Newest</TabsTrigger>
+                  <TabsTrigger value="return">Highest return</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+          )}
           <ReceivableList
             receivables={listed}
             isPending={isPending}

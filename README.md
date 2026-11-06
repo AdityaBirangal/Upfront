@@ -6,7 +6,7 @@ Upfront turns a signed project agreement into funding. A company wins a large co
 its future repayment to investors at a discount, and gets USDT today. When it repays, one transaction
 pays every investor.
 
-- **Live app:** https://eth-global-c6363.web.app
+- **Live app:** https://upfront.web.app
 - **Demo video:** VIDEO_LINK
 - **Built at:** ETHGlobal Mumbai 2026, for Whitechain Tokenize
 

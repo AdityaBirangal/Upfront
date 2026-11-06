@@ -121,7 +121,7 @@ function BuyForm({ receivable, wallet, held, balance, allowance }: Props) {
     <div className="space-y-4">
       {open && (
         <form onSubmit={buy} noValidate className="space-y-3">
-          <fieldset disabled={busy} className="flex flex-wrap items-end gap-3">
+          <fieldset disabled={busy} className="flex min-w-0 flex-wrap items-end gap-3">
             <div className="grid min-w-32 flex-1 gap-1.5">
               <div className="flex items-baseline justify-between">
                 <Label htmlFor={`${id}-units`}>Units to buy</Label>
