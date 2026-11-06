@@ -23,12 +23,12 @@ const SETTLEMENT_TX = explorerTxUrl('0x54ec787e22d5c058def448bec01c57bfe7ccb9c50
 const NAV = [
   { href: '#how', label: 'How it works' },
   { href: '#returns', label: 'Returns' },
-  { href: '#rules', label: 'Guarantees' },
+  { href: '#rules', label: 'Rules' },
   { href: '#live', label: 'Live data' },
 ]
 
 const FACTS: { value: string; label: string }[] = [
-  { value: 'Minutes', label: 'from listing to USDT' },
+  { value: 'Minutes', label: 'to USDT once units sell' },
   { value: '1 tx', label: 'pays every unit holder' },
   { value: '24/7', label: 'no bank hours or cut-offs' },
   { value: '0', label: 'admin access to funds' },
@@ -44,7 +44,7 @@ const ROLE_DOT: Record<Role, string> = {
 const STEPS: { role: Role; title: string; body: string }[] = [
   { role: 'Seller', title: 'Upload the agreement', body: 'The PDF stays offchain. Its SHA-256 hash goes onchain.' },
   { role: 'Client', title: 'Verify it', body: 'The client checks the agreement and confirms it from its own wallet.' },
-  { role: 'Seller', title: 'List units', body: 'Units of the repayment go on sale at a discount, say 0.97 USDT each.' },
+  { role: 'Seller', title: 'List units', body: 'Units of the repayment go on sale at a discount, say 0.90 USDT each.' },
   { role: 'Investors', title: 'Buy units', body: 'USDT reaches the seller and units reach the investor in one transaction.' },
   { role: 'Seller', title: 'Settle', body: 'Before the due date, one transaction pays 1 USDT per unit to every holder.' },
 ]
@@ -124,8 +124,8 @@ function Home() {
               </h1>
               <p className="text-muted-foreground max-w-xl text-lg leading-relaxed text-pretty">
                 Upfront turns a signed project agreement into funding. Sell units of the repayment to approved
-                investors at a discount, and get USDT today. When the client pays, one transaction pays every
-                holder.
+                investors at a discount, and get USDT today. When the seller settles, one transaction pays
+                every holder.
               </p>
               <div className="flex flex-wrap gap-3">
                 <OpenApp />

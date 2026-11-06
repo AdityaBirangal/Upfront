@@ -5,7 +5,7 @@ import StatusBadge from '@/components/StatusBadge.tsx'
 import Guilloche from '@/components/landing/Guilloche.tsx'
 import { cn } from '@/lib/utils'
 
-/* An illustrative deal, matching the pitch: $100M repaid at the due date, sold at a 3% discount. */
+/* An illustrative deal, matching the pitch: $100M repaid at the due date, sold at a 10% discount. */
 const SELLER: Address = '0x00dcb3a97e4f1c62d85a000000000000000000c1'
 const CLIENT: Address = '0x02a87e19c4d63b0f5e12000000000000000000d7'
 const INVESTORS: Address[] = [
@@ -59,7 +59,7 @@ function ReceivableNote({ className }: { className?: string }) {
 
       <figure
         className="bg-card relative overflow-hidden rounded-2xl border shadow-[0_1px_2px_rgb(15_23_42/0.04),0_24px_60px_-28px_rgb(15_23_42/0.35)] dark:shadow-[0_0_0_1px_rgb(255_255_255/0.02),0_30px_70px_-30px_rgb(0_0_0/0.8)]"
-        aria-label="Example receivable: a $100M data centre contract, 72% sold to 184 investors at 0.97 USDT a unit"
+        aria-label="Example receivable: a $100M data centre contract, 72% sold to 184 investors at 0.90 USDT a unit"
       >
         <Guilloche className="text-primary pointer-events-none absolute -top-36 -right-36 size-[22rem] opacity-[0.16] dark:opacity-[0.22]" />
 
@@ -101,8 +101,8 @@ function ReceivableNote({ className }: { className?: string }) {
         {/* Terms. */}
         <div className="mx-5 mt-4 grid grid-cols-3 divide-x rounded-xl border">
           <Figure label="Face value" value="100M" unit="USDT" />
-          <Figure label="Unit price" value="0.97" unit="USDT" />
-          <Figure label="Return" value="+3.09%" className="text-yield" />
+          <Figure label="Unit price" value="0.90" unit="USDT" />
+          <Figure label="Return" value="+11.1%" className="text-yield" />
         </div>
 
         {/* Funding. */}
