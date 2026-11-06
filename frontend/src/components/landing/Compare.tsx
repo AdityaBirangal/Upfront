@@ -3,8 +3,8 @@ import { Logo } from '@/components/layout/SideNav.tsx'
 import { cn } from '@/lib/utils'
 
 const ROWS: { label: string; bank: string; upfront: string }[] = [
-  { label: 'Time to cash', bank: 'Weeks of credit review', upfront: 'Minutes after listing' },
-  { label: 'Collateral', bank: 'Usually required', upfront: 'The client-verified agreement' },
+  { label: 'Time to cash', bank: 'Weeks of credit review', upfront: 'Minutes once units sell' },
+  { label: 'Collateral', bank: 'Usually required', upfront: 'None. Investors rely on the seller to repay' },
   { label: 'Who can fund', bank: 'A handful of lenders', upfront: 'Any approved investor, unit by unit' },
   { label: 'Repayment', bank: 'Each lender paid separately', upfront: 'One transaction pays every holder' },
   { label: 'Hours', bank: 'Bank hours and cut-offs', upfront: '24/7 on Whitechain' },

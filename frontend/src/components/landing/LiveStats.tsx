@@ -93,34 +93,45 @@ function Figure({
   )
 }
 
-const COLS = 'sm:grid-cols-[minmax(0,10rem)_minmax(0,1fr)_5.5rem_6.5rem]'
+const COLS = 'sm:grid-cols-[minmax(0,9.5rem)_minmax(0,1fr)_4.5rem_5.5rem_6.5rem]'
 
-/** One deal as a strip of its units: filled by what sold, coloured by how it ended. */
+/** Basis points as a short percentage: 1000 → "10%", 250 → "2.5%". */
+const bpsToPct = (bps: number) => `${Number.isInteger(bps / 100) ? bps / 100 : (bps / 100).toFixed(1)}%`
+
+/** One deal: how much of it sold, as a single bar coloured by how it ended. */
 function DealRow({ r }: { r: Receivable }) {
-  const units = Math.min(Number(r.totalUnits), 20)
-  const sold = Math.min(Number(r.unitsSold), units)
+  const total = Number(r.totalUnits)
+  const sold = Number(r.unitsSold)
+  const share = total > 0 ? Math.min(sold / total, 1) : 0
   const fill = r.status === 'Settled' ? 'bg-state-settled' : r.status === 'Defaulted' ? 'bg-state-defaulted' : 'bg-primary'
+  const counts = `${sold.toLocaleString()} of ${total.toLocaleString()} units sold`
   return (
     <li className="border-t">
       <Link
         to={`/app/receivable/${r.id}`}
         className={cn(
-          'group hover:bg-muted/50 grid grid-cols-[1fr_auto] items-center gap-x-6 gap-y-2.5 px-6 py-4 transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:ring-inset md:px-8',
+          'group hover:bg-muted/50 grid grid-cols-[1fr_auto] items-center gap-x-6 gap-y-2 px-6 py-2.5 transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:ring-inset md:px-8',
           COLS,
         )}
       >
         <span className="group-hover:text-primary truncate font-mono text-xs font-medium transition-colors">{r.ref}</span>
-        <span
-          className="order-last col-span-2 flex gap-[3px] sm:order-none sm:col-span-1"
-          aria-label={`${r.unitsSold} of ${r.totalUnits} units sold`}
-        >
-          {Array.from({ length: units }, (_, i) => (
-            <span key={i} className={cn('h-2 flex-1 rounded-full', i < sold ? fill : 'bg-muted')} />
-          ))}
+        <span className="order-last col-span-2 flex items-center gap-3 sm:order-none sm:col-span-1" title={counts}>
+          <span
+            className="bg-muted relative h-1.5 flex-1 overflow-hidden rounded-full"
+            role="progressbar"
+            aria-label={`${r.ref}: ${counts}`}
+            aria-valuemin={0}
+            aria-valuemax={total}
+            aria-valuenow={sold}
+          >
+            <span className={cn('absolute inset-y-0 left-0 rounded-full', fill)} style={{ width: `${share * 100}%` }} />
+          </span>
+          <span className="text-muted-foreground tabular w-10 shrink-0 text-right text-xs">{Math.round(share * 100)}%</span>
         </span>
+        <span className="text-muted-foreground tabular hidden text-right text-sm sm:block">{bpsToPct(Number(r.discountBps))}</span>
         <span className="tabular hidden text-right text-sm sm:block">{toNumber(r.unitsSold * r.unitPrice).toFixed(2)}</span>
         <span className="flex justify-end">
-          <StatusBadge status={r.status} />
+          <StatusBadge status={r.status} className="h-5 gap-1 px-2 text-[0.6875rem]" />
         </span>
       </Link>
     </li>
@@ -206,12 +217,13 @@ function LiveStats() {
             <div className="border-t">
               <div
                 className={cn(
-                  'text-muted-foreground hidden gap-x-6 px-6 py-3 font-mono text-[0.6875rem] tracking-[0.12em] uppercase sm:grid md:px-8',
+                  'text-muted-foreground hidden gap-x-6 px-6 py-2 font-mono text-[0.6875rem] tracking-[0.12em] uppercase sm:grid md:px-8',
                   COLS,
                 )}
               >
                 <span>Deal</span>
                 <span>Units sold</span>
+                <span className="text-right">Discount</span>
                 <span className="text-right">USDT in</span>
                 <span className="text-right">Status</span>
               </div>

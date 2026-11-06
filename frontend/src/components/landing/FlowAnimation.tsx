@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { Building2, Factory, Pause, Play, User } from 'lucide-react'
+import { Building2, Check, Factory, Pause, Play } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 /* ── Timeline ─────────────────────────────────────────────────────────────── */
@@ -25,95 +26,114 @@ const TOTAL = STARTS[STARTS.length - 1] + PHASES[PHASES.length - 1].ms + HOLD
 const START = Object.fromEntries(PHASES.map((p, i) => [p.key, STARTS[i]])) as Record<PhaseKey, number>
 const DUR = Object.fromEntries(PHASES.map((p) => [p.key, p.ms])) as Record<PhaseKey, number>
 
+/** Units are cobalt, money is green, the client's check is teal, returns are gold. */
+const UNITS = 'var(--primary)'
+const MONEY = 'var(--state-settled)'
+const CHECK = 'var(--state-funded)'
+const GOLD = 'var(--yield)'
+
 const clamp = (v: number) => Math.min(Math.max(v, 0), 1)
 const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2)
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t
+
 type Pt = { x: number; y: number }
+type Cubic = [Pt, Pt, Pt, Pt]
+const P = (x: number, y: number): Pt => ({ x, y })
+
 const bezier = (a: Pt, c: Pt, b: Pt, t: number): Pt => ({
   x: (1 - t) ** 2 * a.x + 2 * (1 - t) * t * c.x + t ** 2 * b.x,
   y: (1 - t) ** 2 * a.y + 2 * (1 - t) * t * c.y + t ** 2 * b.y,
 })
+function along([a, b, c, d]: Cubic, t: number): Pt {
+  const m = 1 - t
+  return {
+    x: m * m * m * a.x + 3 * m * m * t * b.x + 3 * m * t * t * c.x + t * t * t * d.x,
+    y: m * m * m * a.y + 3 * m * m * t * b.y + 3 * m * t * t * c.y + t * t * t * d.y,
+  }
+}
+const cubicPath = ([a, b, c, d]: Cubic) => `M${a.x} ${a.y}C${b.x} ${b.y} ${c.x} ${c.y} ${d.x} ${d.y}`
+const quadPath = (a: Pt, c: Pt, b: Pt) => `M${a.x} ${a.y}Q${c.x} ${c.y} ${b.x} ${b.y}`
+const flip = ([a, b, c, d]: Cubic): Cubic => [d, c, b, a]
 
 /* ── Stage geometry: wide for desktop, portrait for phones ────────────────── */
 
 type Geo = {
   viewBox: [number, number, number, number]
+  compact: boolean
   client: Pt
   builder: Pt
   investors: Pt[]
+  /** Client and business cards, and investor cards. */
+  card: { w: number; h: number }
+  inv: { w: number; h: number }
   doc: Pt
   units: Pt
   tileAt: (i: number) => Pt
-  clientLabel: Pt & { anchor: 'middle' | 'start' }
-  builderLabel: Pt & { anchor: 'middle' | 'start' }
   investorsLabel: Pt
   cash: Pt
-  gain: (inv: Pt) => Pt & { anchor: 'middle' | 'start' }
   line: { x0: number; x1: number; y: number }
-  /** Bezier control points for each flight. */
-  c: { tick: Pt; doc: Pt; tile: Pt; fund: Pt; repay: Pt; settle: Pt; repayLabel: Pt }
-  rail: (inv: Pt) => string
+  /** The line from the client to the business, and from the business to each investor. */
+  link: Cubic
+  rail: (inv: Pt) => Cubic
+  /** Control points for objects that fly in an arc. */
+  c: { tick: Pt; doc: Pt; tile: Pt }
+  tickFrom: Pt
+  repayLabel: Pt & { anchor: 'middle' | 'start' }
 }
 
 const WIDE: Geo = (() => {
-  const client = { x: 140, y: 205 }
-  const builder = { x: 480, y: 205 }
-  const investors = [100, 170, 240, 310].map((y) => ({ x: 830, y }))
+  const client = P(140, 205)
+  const builder = P(480, 205)
+  const investors = [100, 170, 240, 310].map((y) => P(830, y))
+  const card = { w: 150, h: 60 }
+  const inv = { w: 124, h: 50 }
   return {
     viewBox: [0, 50, 960, 410],
+    compact: false,
     client,
     builder,
     investors,
-    doc: { x: 310, y: 205 },
-    units: { x: 620, y: 205 },
-    tileAt: (i) => ({ x: 830 - 38 - Math.floor(i / 4) * 15, y: investors[i % 4].y }),
-    clientLabel: { x: client.x, y: client.y + 72, anchor: 'middle' },
-    builderLabel: { x: builder.x, y: builder.y + 80, anchor: 'middle' },
-    investorsLabel: { x: 830, y: 360 },
-    cash: { x: builder.x, y: builder.y - 88 },
-    gain: (inv) => ({ x: inv.x + 32, y: inv.y + 7, anchor: 'start' }),
+    card,
+    inv,
+    doc: P(310, 205),
+    units: P(640, 205),
+    tileAt: (i) => ({ x: 830 - inv.w / 2 - 12 - Math.floor(i / 4) * 15, y: investors[i % 4].y }),
+    investorsLabel: P(830, 360),
+    cash: P(builder.x, builder.y - 70),
     line: { x0: client.x, x1: 830, y: 410 },
-    c: {
-      tick: { x: 220, y: 70 },
-      doc: { x: 465, y: 70 },
-      tile: { x: 730, y: 60 },
-      fund: { x: 660, y: 360 },
-      repay: { x: 310, y: 300 },
-      settle: { x: 680, y: 380 },
-      repayLabel: { x: 310, y: 292 },
-    },
-    rail: (inv) => `M ${builder.x + 50} ${builder.y} C 640 ${builder.y}, 700 ${inv.y}, ${inv.x - 70} ${inv.y}`,
+    link: [P(client.x + card.w / 2, 205), P(280, 205), P(340, 205), P(builder.x - card.w / 2, 205)],
+    rail: (p) => [P(builder.x + card.w / 2, builder.y), P(650, builder.y), P(700, p.y), P(p.x - inv.w / 2, p.y)],
+    c: { tick: P(220, 90), doc: P(470, 70), tile: P(735, 60) },
+    tickFrom: P(client.x + 30, client.y - card.h / 2),
+    repayLabel: { x: 310, y: 190, anchor: 'middle' },
   }
 })()
 
 const TALL: Geo = (() => {
-  const client = { x: 200, y: 70 }
-  const builder = { x: 200, y: 300 }
-  const investors = [65, 155, 245, 335].map((x) => ({ x, y: 540 }))
+  const client = P(200, 70)
+  const builder = P(200, 300)
+  const investors = [65, 155, 245, 335].map((x) => P(x, 540))
+  const card = { w: 168, h: 56 }
+  const inv = { w: 82, h: 56 }
   return {
     viewBox: [0, 0, 400, 650],
+    compact: true,
     client,
     builder,
     investors,
-    doc: { x: 200, y: 185 },
-    units: { x: 200, y: 412 },
-    tileAt: (i) => ({ x: investors[i % 4].x + (Math.floor(i / 4) - 1) * 15, y: 540 - 40 }),
-    clientLabel: { x: client.x + 58, y: client.y + 5, anchor: 'start' },
-    builderLabel: { x: builder.x + 66, y: builder.y + 5, anchor: 'start' },
-    investorsLabel: { x: 200, y: 594 },
-    cash: { x: 80, y: builder.y },
-    gain: (inv) => ({ x: inv.x, y: inv.y - 32, anchor: 'middle' }),
+    card,
+    inv,
+    doc: P(200, 185),
+    units: P(200, 412),
+    tileAt: (i) => ({ x: investors[i % 4].x + (Math.floor(i / 4) - 1) * 15, y: 540 - inv.h / 2 - 12 }),
+    investorsLabel: P(200, 594),
+    cash: P(58, builder.y),
     line: { x0: 30, x1: 370, y: 615 },
-    c: {
-      tick: { x: 330, y: 90 },
-      doc: { x: 340, y: 300 },
-      tile: { x: 330, y: 470 },
-      fund: { x: 60, y: 420 },
-      repay: { x: 60, y: 185 },
-      settle: { x: 340, y: 420 },
-      repayLabel: { x: 88, y: 190 },
-    },
-    rail: (inv) => `M ${builder.x} ${builder.y + 50} C ${builder.x} 440, ${inv.x} 440, ${inv.x} ${inv.y - 56}`,
+    link: [P(200, client.y + card.h / 2), P(200, 140), P(200, 230), P(200, builder.y - card.h / 2)],
+    rail: (p) => [P(builder.x, builder.y + card.h / 2), P(builder.x, 450), P(p.x, 440), P(p.x, p.y - inv.h / 2)],
+    c: { tick: P(330, 90), doc: P(340, 300), tile: P(330, 470) },
+    tickFrom: P(client.x + card.w / 2, client.y),
+    repayLabel: { x: 214, y: 190, anchor: 'start' },
   }
 })()
 
@@ -125,31 +145,99 @@ const tileHome = (g: Geo, i: number): Pt => ({
   y: g.units.y - (TILE + 5) / 2 + Math.floor(i / 6) * (TILE + 5),
 })
 
-function Coin({ at, fill, ink }: { at: Pt; fill: string; ink: string }) {
+/* ── Pieces ───────────────────────────────────────────────────────────────── */
+
+function Card({
+  at,
+  size,
+  icon: Icon,
+  title,
+  sub,
+  tone,
+  active,
+  children,
+}: {
+  at: Pt
+  size: { w: number; h: number }
+  icon: LucideIcon
+  title: string
+  sub: string
+  tone: string
+  active: boolean
+  children?: React.ReactNode
+}) {
+  const left = at.x - size.w / 2
+  return (
+    <g>
+      <rect
+        x={left}
+        y={at.y - size.h / 2}
+        width={size.w}
+        height={size.h}
+        rx={12}
+        fill="var(--card)"
+        stroke={active ? tone : 'var(--border)'}
+        strokeWidth={active ? 1.5 : 1}
+        style={{ transition: 'stroke 300ms' }}
+      />
+      <rect x={left + 12} y={at.y - 16} width={32} height={32} rx={8} fill={tone} fillOpacity={0.12} />
+      <Icon x={left + 20} y={at.y - 8} width={16} height={16} color={tone} strokeWidth={2} />
+      <text x={left + 54} y={at.y - 2} fontSize={14} fontWeight={600} fill="var(--foreground)">
+        {title}
+      </text>
+      <text x={left + 54} y={at.y + 15} fontSize={11.5} fill="var(--muted-foreground)">
+        {sub}
+      </text>
+      {children}
+    </g>
+  )
+}
+
+/** A line lighting up from its start, with a soft glowing head. */
+function Trail({ d, p, tone, opacity = 1, head = true }: { d: string; p: number; tone: string; opacity?: number; head?: boolean }) {
+  if (p <= 0 || opacity <= 0) return null
+  return (
+    <g opacity={opacity}>
+      <path d={d} pathLength={1} fill="none" stroke={tone} strokeWidth={2} strokeLinecap="round" strokeDasharray={`${p} 1`} strokeOpacity={0.75} />
+      {head && p < 1 && (
+        <path
+          d={d}
+          pathLength={1}
+          fill="none"
+          stroke={tone}
+          strokeWidth={8}
+          strokeLinecap="round"
+          strokeDasharray="0.07 1.2"
+          strokeDashoffset={0.07 - p}
+          opacity={0.4}
+          filter="url(#flow-glow)"
+        />
+      )}
+    </g>
+  )
+}
+
+/** A glowing bead of money moving along a line. */
+function Bead({ at, tone }: { at: Pt; tone: string }) {
   return (
     <g transform={`translate(${at.x} ${at.y})`}>
-      <circle r={9} fill={fill} />
-      <text y={3.6} textAnchor="middle" fontSize={11} fontWeight={700} fill={ink}>
-        $
+      <circle r={9} fill={tone} opacity={0.25} filter="url(#flow-glow)" />
+      <circle r={4.5} fill={tone} stroke="var(--card)" strokeWidth={1.5} />
+    </g>
+  )
+}
+
+function Chip({ at, label, tone, size = 14 }: { at: Pt; label: string; tone: string; size?: number }) {
+  const w = 22 + label.length * size * 0.62
+  const h = size + 14
+  return (
+    <g transform={`translate(${at.x - w / 2} ${at.y - h / 2})`}>
+      <rect width={w} height={h} rx={h / 2} fill="var(--card)" stroke={tone} strokeWidth={1.5} />
+      <rect width={w} height={h} rx={h / 2} fill={tone} fillOpacity={0.1} />
+      <text x={w / 2} y={h / 2 + size * 0.36} textAnchor="middle" fontSize={size} fontWeight={700} fill={tone}>
+        {label}
       </text>
     </g>
-  )
-}
-
-function Tick({ at }: { at: Pt }) {
-  return (
-    <g transform={`translate(${at.x} ${at.y})`}>
-      <circle r={11} fill="var(--state-settled)" />
-      <path d="M -5 0 L -1.5 3.5 L 5 -3.5" fill="none" stroke="white" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" />
-    </g>
-  )
-}
-
-function Label({ at, children }: { at: Pt & { anchor?: 'middle' | 'start' }; children: React.ReactNode }) {
-  return (
-    <text x={at.x} y={at.y} textAnchor={at.anchor ?? 'middle'} fontSize={15} fontWeight={600} fill="var(--foreground)">
-      {children}
-    </text>
   )
 }
 
@@ -170,7 +258,7 @@ function useNarrow() {
 
 /**
  * The idea in one loop: a contract is signed and verified, split into units, sold to investors
- * for USDT, the builder builds, the client pays, and every holder is paid out.
+ * for USDT, the business does the work, the client pays, and every holder is paid out.
  */
 function FlowAnimation({ className }: { className?: string }) {
   const [t, setT] = useState(() => (reducedMotion() ? START.settle + DUR.settle - 1 : 0))
@@ -191,7 +279,7 @@ function FlowAnimation({ className }: { className?: string }) {
     if (!playing || !visible) return
     const clock = { last: performance.now(), frame: 0 }
     clock.frame = requestAnimationFrame(function tick(now) {
-      const dt = now - clock.last
+      const dt = Math.min(now - clock.last, 100)
       clock.last = now
       setT((prev) => (prev + dt) % TOTAL)
       clock.frame = requestAnimationFrame(tick)
@@ -200,6 +288,8 @@ function FlowAnimation({ className }: { className?: string }) {
   }, [playing, visible])
 
   const p = (k: PhaseKey) => clamp((t - START[k]) / DUR[k])
+  /** Fades a phase's trails out shortly after the phase ends. */
+  const after = (k: PhaseKey) => 1 - clamp((t - START[k] - DUR[k]) / 500)
   const ps = p('sign')
   const pv = p('verify')
   const pt = p('tokenize')
@@ -208,6 +298,7 @@ function FlowAnimation({ className }: { className?: string }) {
   const pr = p('repay')
   const pst = p('settle')
   const active = PHASES.findLastIndex((ph) => t >= START[ph.key])
+  const phase = PHASES[active]?.key
 
   /* Contract document. */
   const docPos = bezier(g.doc, g.c.doc, g.units, ease(clamp(pt / 0.45)))
@@ -216,12 +307,9 @@ function FlowAnimation({ className }: { className?: string }) {
   const docOpacity = docIn * (1 - docShrink)
   const docScale = lerp(0.85, 1, docIn) * lerp(1, 0.6, docShrink)
   const verified = pv > 0.85
-  const tickPos = bezier(
-    { x: g.client.x + 30, y: g.client.y - 30 },
-    g.c.tick,
-    { x: g.doc.x + 30, y: g.doc.y - 40 },
-    ease(clamp(pv / 0.8)),
-  )
+  const tickTo = { x: g.doc.x + 30, y: g.doc.y - 40 }
+  const tickP = ease(clamp(pv / 0.8))
+  const tickPos = bezier(g.tickFrom, g.c.tick, tickTo, tickP)
 
   /* Business cash: raised, spent on the work, paid by the client, paid out. */
   const cash =
@@ -237,10 +325,13 @@ function FlowAnimation({ className }: { className?: string }) {
   const repaid = t >= START.repay
 
   const marker = lerp(g.line.x0, g.line.x1, ease(pb))
-  const settledTone = pst > 0.35
   const tileFade = 1 - clamp((pst - 0.7) / 0.2)
   const gold = ease(clamp((pst - 0.55) / 0.3))
+  const holding = pf > 0.6 && pst < 0.75
   const [vx, vy, vw, vh] = g.viewBox
+  const rails = g.investors.map((inv) => g.rail(inv))
+  const bLeft = g.builder.x - g.card.w / 2
+  const bBottom = g.builder.y + g.card.h / 2
 
   return (
     <div ref={box} className={cn('relative', className)}>
@@ -261,7 +352,7 @@ function FlowAnimation({ className }: { className?: string }) {
                   aria-current={i === active ? 'step' : undefined}
                   aria-label={ph.label}
                 >
-                  <span className="bg-muted block h-1 overflow-hidden rounded-full">
+                  <span className="bg-muted block h-0.5 overflow-hidden rounded-full">
                     <span
                       className={cn('block h-full rounded-full', i === PHASES.length - 1 ? 'bg-state-settled' : 'bg-primary')}
                       style={{ width: `${prog * 100}%` }}
@@ -269,7 +360,7 @@ function FlowAnimation({ className }: { className?: string }) {
                   </span>
                   <span
                     className={cn(
-                      'mt-1.5 hidden truncate text-xs leading-none transition-colors sm:block',
+                      'mt-2 hidden truncate text-xs leading-none transition-colors sm:block',
                       i === active ? 'text-foreground font-semibold' : 'text-muted-foreground group-hover:text-foreground',
                     )}
                   >
@@ -300,106 +391,141 @@ function FlowAnimation({ className }: { className?: string }) {
         aria-label="A signed contract is verified by the client, split into units, and sold to investors for USDT. The business does the work, the client pays, and the business pays every unit holder, who earn 11%."
       >
         <defs>
-          <radialGradient id="flow-fade" cx="50%" cy="50%" r="60%">
+          <filter id="flow-glow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="3" />
+          </filter>
+          <radialGradient id="flow-fade" cx="50%" cy="50%" r="62%">
             <stop offset="0%" stopColor="white" />
             <stop offset="100%" stopColor="black" />
           </radialGradient>
           <mask id="flow-mask">
             <rect x={vx} y={vy} width={vw} height={vh} fill="url(#flow-fade)" />
           </mask>
-          <pattern id="flow-dots" width="24" height="24" patternUnits="userSpaceOnUse">
-            <circle cx="1" cy="1" r="1" fill="var(--border)" />
+          <pattern id="flow-dots" width="20" height="20" patternUnits="userSpaceOnUse">
+            <circle cx="1" cy="1" r="0.9" fill="var(--border)" />
           </pattern>
         </defs>
         <rect x={vx} y={vy} width={vw} height={vh} fill="url(#flow-dots)" mask="url(#flow-mask)" />
 
-        {/* Rails. */}
-        <g stroke="var(--border)" strokeWidth={1.5} strokeDasharray="4 6" fill="none">
-          <line x1={g.client.x} y1={g.client.y} x2={g.builder.x} y2={g.builder.y} />
-          {g.investors.map((inv) => (
-            <path key={`${inv.x}-${inv.y}`} d={g.rail(inv)} />
+        {/* The lines everything travels on, with a slow drift. */}
+        <g fill="none" stroke="var(--border)" strokeWidth={1.5} strokeLinecap="round">
+          <path d={cubicPath(g.link)} className="flow-line" />
+          {rails.map((r, i) => (
+            <path key={i} d={cubicPath(r)} className="flow-line" />
           ))}
         </g>
 
-        {/* Client. */}
-        <circle cx={g.client.x} cy={g.client.y} r={44} fill="var(--card)" stroke="var(--border)" strokeWidth={1.5} />
-        <circle
-          cx={g.client.x}
-          cy={g.client.y}
-          r={44 + 12 * clamp(pv / 0.4)}
-          fill="none"
-          stroke="var(--state-settled)"
-          strokeWidth={2}
-          opacity={pv > 0 && pv < 0.4 ? 1 - pv / 0.4 : 0}
-        />
-        <Building2 x={g.client.x - 15} y={g.client.y - 15} width={30} height={30} color="var(--foreground)" strokeWidth={1.75} />
-        <Label at={g.clientLabel}>Client</Label>
+        {/* Lit routes for what's moving now. */}
+        <Trail d={quadPath(g.tickFrom, g.c.tick, tickTo)} p={tickP} tone={CHECK} opacity={pv > 0 ? after('verify') : 0} />
+        {rails.map((r, k) => (
+          <Trail key={`fund${k}`} d={cubicPath(flip(r))} p={ease(clamp((pf - 0.1 - k * 0.04) / 0.5))} tone={MONEY} opacity={after('fund')} />
+        ))}
+        <Trail d={cubicPath(g.link)} p={ease(clamp(pr / 0.6))} tone={MONEY} opacity={after('repay')} />
+        {rails.map((r, k) => (
+          <Trail key={`settle${k}`} d={cubicPath(r)} p={ease(clamp((pst - k * 0.03) / 0.5))} tone={MONEY} opacity={after('settle') * (1 - gold * 0.6)} />
+        ))}
 
-        {/* Business, with a ring for the work. */}
-        <circle cx={g.builder.x} cy={g.builder.y} r={44} fill="var(--card)" stroke="var(--border)" strokeWidth={1.5} />
-        <circle
-          cx={g.builder.x}
-          cy={g.builder.y}
-          r={52}
-          fill="none"
-          stroke={repaid ? 'var(--state-settled)' : 'var(--primary)'}
-          strokeWidth={4}
-          strokeLinecap="round"
-          strokeDasharray={`${2 * Math.PI * 52 * ease(pb)} 999`}
-          transform={`rotate(-90 ${g.builder.x} ${g.builder.y})`}
-          opacity={pb > 0 ? 1 : 0}
+        {/* Client. */}
+        <Card
+          at={g.client}
+          size={g.card}
+          icon={Building2}
+          title="Client"
+          sub="Pays at the end"
+          tone={CHECK}
+          active={phase === 'verify' || phase === 'repay'}
         />
-        <Factory x={g.builder.x - 15} y={g.builder.y - 15} width={30} height={30} color="var(--foreground)" strokeWidth={1.75} />
-        <Label at={g.builderLabel}>Business</Label>
+
+        {/* Business, with a bar for the work. */}
+        <Card
+          at={g.builder}
+          size={g.card}
+          icon={Factory}
+          title="Business"
+          sub={pb > 0 && pb < 1 ? 'Doing the work' : 'Wins the contract'}
+          tone="var(--primary)"
+          active={phase === 'sign' || phase === 'build' || phase === 'settle'}
+        >
+          {pb > 0 && (
+            <>
+              <rect x={bLeft + 12} y={bBottom - 7} width={g.card.w - 24} height={3} rx={1.5} fill="var(--muted)" />
+              <rect
+                x={bLeft + 12}
+                y={bBottom - 7}
+                width={(g.card.w - 24) * ease(pb)}
+                height={3}
+                rx={1.5}
+                fill={repaid ? MONEY : 'var(--primary)'}
+              />
+            </>
+          )}
+        </Card>
         <g opacity={cash > 0.4 ? 1 : 0} style={{ transition: 'opacity 300ms' }}>
-          <rect
-            x={g.cash.x - 46}
-            y={g.cash.y - 16}
-            width={92}
-            height={32}
-            rx={16}
-            fill={repaid ? 'var(--state-settled)' : 'var(--primary)'}
-          />
-          <text x={g.cash.x} y={g.cash.y + 6} textAnchor="middle" fontSize={16} fontWeight={700} fill="var(--primary-foreground)">
-            ${Math.round(cash)}M
-          </text>
+          <Chip at={g.cash} label={`$${Math.round(cash)}M`} tone={repaid ? MONEY : 'var(--primary)'} size={g.compact ? 13 : 14} />
         </g>
 
         {/* Investors. */}
-        {g.investors.map((inv) => {
-          const gain = g.gain(inv)
+        {g.investors.map((inv, k) => {
+          const left = inv.x - g.inv.w / 2
+          const settled = gold > 0.05
+          const status = settled ? `${GAIN} earned` : holding ? 'Holds units' : 'Investor'
           return (
             <g key={`${inv.x}-${inv.y}`}>
-              <circle
-                cx={inv.x}
-                cy={inv.y}
-                r={22}
+              <rect
+                x={left}
+                y={inv.y - g.inv.h / 2}
+                width={g.inv.w}
+                height={g.inv.h}
+                rx={12}
                 fill="var(--card)"
-                stroke={gold > 0.05 ? 'var(--state-settled)' : 'var(--border)'}
-                strokeWidth={gold > 0.05 ? 2.5 : 1.5}
+                stroke={settled ? GOLD : holding ? UNITS : 'var(--border)'}
+                strokeOpacity={settled || holding ? 0.7 : 1}
+                strokeWidth={settled ? 1.5 : 1}
+                style={{ transition: 'stroke 300ms' }}
               />
-              <User x={inv.x - 10} y={inv.y - 10} width={20} height={20} color="var(--foreground)" strokeWidth={1.75} />
-              <text x={gain.x} y={gain.y} textAnchor={gain.anchor} fontSize={20} fontWeight={800} fill="var(--state-settled)" opacity={gold}>
-                {GAIN}
-              </text>
+              {g.compact ? (
+                <>
+                  <circle cx={inv.x} cy={inv.y - 9} r={11} fill={GOLD} fillOpacity={0.15} />
+                  <text x={inv.x} y={inv.y - 5} textAnchor="middle" fontSize={11.5} fontWeight={700} fill={GOLD}>
+                    {'ABCD'[k]}
+                  </text>
+                  <text x={inv.x} y={inv.y + 18} textAnchor="middle" fontSize={settled ? 13 : 10.5} fontWeight={settled ? 800 : 500} fill={settled ? GOLD : 'var(--muted-foreground)'}>
+                    {settled ? GAIN : holding ? 'Units' : 'Investor'}
+                  </text>
+                </>
+              ) : (
+                <>
+                  <circle cx={left + 24} cy={inv.y} r={13} fill={GOLD} fillOpacity={0.15} />
+                  <text x={left + 24} y={inv.y + 4.5} textAnchor="middle" fontSize={12} fontWeight={700} fill={GOLD}>
+                    {'ABCD'[k]}
+                  </text>
+                  <text x={left + 46} y={inv.y - 3} fontSize={13} fontWeight={600} fill="var(--foreground)">
+                    Investor {'ABCD'[k]}
+                  </text>
+                  <text x={left + 46} y={inv.y + 13} fontSize={11.5} fontWeight={settled ? 700 : 400} fill={settled ? GOLD : 'var(--muted-foreground)'}>
+                    {status}
+                  </text>
+                </>
+              )}
             </g>
           )
         })}
-        <Label at={g.investorsLabel}>Investors</Label>
+        <text
+          x={g.investorsLabel.x}
+          y={g.investorsLabel.y}
+          textAnchor="middle"
+          fontSize={11}
+          fontWeight={600}
+          letterSpacing="0.12em"
+          fill="var(--muted-foreground)"
+        >
+          INVESTORS
+        </text>
 
         {/* Contract. */}
         {docOpacity > 0.01 && (
           <g opacity={docOpacity} transform={`translate(${docPos.x} ${docPos.y}) scale(${docScale})`}>
-            <rect
-              x={-32}
-              y={-42}
-              width={64}
-              height={84}
-              rx={8}
-              fill="var(--card)"
-              stroke={verified ? 'var(--state-settled)' : 'var(--foreground)'}
-              strokeWidth={2}
-            />
+            <rect x={-32} y={-42} width={64} height={84} rx={9} fill="var(--card)" stroke={verified ? CHECK : 'var(--foreground)'} strokeWidth={1.75} />
             {[0, 1, 2].map((l) => (
               <rect
                 key={l}
@@ -409,18 +535,28 @@ function FlowAnimation({ className }: { className?: string }) {
                 rx={2}
                 width={40 * clamp((ps - 0.2 - l * 0.15) / 0.3) * (l === 2 ? 0.6 : 1)}
                 fill="var(--muted-foreground)"
-                opacity={0.5}
+                opacity={0.45}
               />
             ))}
             <text y={28} textAnchor="middle" fontSize={14} fontWeight={700} fill="var(--foreground)">
               $100M
             </text>
-            {verified && <Tick at={{ x: 30, y: -40 }} />}
+            {verified && (
+              <g transform="translate(30 -40)">
+                <circle r={11} fill={CHECK} />
+                <Check x={-6.5} y={-6.5} width={13} height={13} color="var(--card)" strokeWidth={3.5} />
+              </g>
+            )}
           </g>
         )}
 
         {/* Verify tick in flight. */}
-        {pv > 0 && !verified && <Tick at={tickPos} />}
+        {pv > 0 && !verified && (
+          <g transform={`translate(${tickPos.x} ${tickPos.y})`}>
+            <circle r={11} fill={CHECK} />
+            <Check x={-6.5} y={-6.5} width={13} height={13} color="var(--card)" strokeWidth={3.5} />
+          </g>
+        )}
 
         {/* Units. */}
         {Array.from({ length: TILES }, (_, i) => {
@@ -436,58 +572,59 @@ function FlowAnimation({ className }: { className?: string }) {
               y={pos.y - size / 2}
               width={size}
               height={size}
-              rx={3}
-              fill={settledTone && fly >= 1 ? 'var(--state-settled)' : 'var(--primary)'}
+              rx={3.5}
+              fill={UNITS}
+              stroke="var(--card)"
+              strokeWidth={1}
               opacity={tileFade}
-              style={{ transition: 'fill 400ms' }}
             />
           )
         })}
 
-        {/* USDT from investors to builder. */}
+        {/* USDT from investors to the business, along the lines. */}
         {Array.from({ length: 8 }, (_, c) => {
           const lc = ease(clamp((pf - 0.12 - c * 0.05) / 0.45))
           if (lc <= 0 || lc >= 1) return null
-          const at = bezier(g.investors[c % 4], g.c.fund, g.builder, lc)
-          return <Coin key={c} at={at} fill="var(--primary)" ink="var(--primary-foreground)" />
+          return <Bead key={c} at={along(flip(rails[c % 4]), lc)} tone={MONEY} />
         })}
 
-        {/* Client pays the business. */}
-        {Array.from({ length: 6 }, (_, c) => {
-          const lc = ease(clamp((pr - c * 0.07) / 0.55))
+        {/* The client pays the business. */}
+        {Array.from({ length: 5 }, (_, c) => {
+          const lc = ease(clamp((pr - c * 0.08) / 0.55))
           if (lc <= 0 || lc >= 1) return null
-          return <Coin key={c} at={bezier(g.client, g.c.repay, g.builder, lc)} fill="var(--state-settled)" ink="white" />
+          return <Bead key={c} at={along(g.link, lc)} tone={MONEY} />
         })}
         <text
-          x={g.c.repayLabel.x}
-          y={g.c.repayLabel.y}
-          textAnchor="middle"
-          fontSize={15}
+          x={g.repayLabel.x}
+          y={g.repayLabel.y}
+          textAnchor={g.repayLabel.anchor}
+          fontSize={14}
           fontWeight={700}
-          fill="var(--state-settled)"
+          fill={MONEY}
           opacity={pr > 0 && pr < 1 ? Math.sin(pr * Math.PI) : 0}
         >
           $100M
         </text>
 
-        {/* Business pays every holder. */}
+        {/* The business pays every holder. */}
         {Array.from({ length: 8 }, (_, c) => {
           const lc = ease(clamp((pst - c * 0.05) / 0.45))
           if (lc <= 0 || lc >= 1) return null
-          return <Coin key={c} at={bezier(g.builder, g.c.settle, g.investors[c % 4], lc)} fill="var(--state-settled)" ink="white" />
+          return <Bead key={c} at={along(rails[c % 4], lc)} tone={MONEY} />
         })}
 
         {/* Day one to due date. */}
         <line x1={g.line.x0} y1={g.line.y} x2={g.line.x1} y2={g.line.y} stroke="var(--border)" strokeWidth={2} strokeLinecap="round" />
-        <line x1={g.line.x0} y1={g.line.y} x2={marker} y2={g.line.y} stroke="var(--foreground)" strokeWidth={2} strokeLinecap="round" opacity={0.6} />
-        <circle cx={marker} cy={g.line.y} r={6} fill="var(--foreground)" />
-        <text x={g.line.x0} y={g.line.y + 26} fontSize={13} fill="var(--muted-foreground)">
+        <line x1={g.line.x0} y1={g.line.y} x2={marker} y2={g.line.y} stroke="var(--primary)" strokeWidth={2} strokeLinecap="round" />
+        <circle cx={marker} cy={g.line.y} r={9} fill="var(--primary)" opacity={0.2} filter="url(#flow-glow)" />
+        <circle cx={marker} cy={g.line.y} r={5} fill="var(--primary)" stroke="var(--card)" strokeWidth={2} />
+        <text x={g.line.x0} y={g.line.y + 26} fontSize={12.5} fill="var(--muted-foreground)">
           Day 1
         </text>
-        <text x={(g.line.x0 + g.line.x1) / 2} y={g.line.y + 26} fontSize={13} fill="var(--muted-foreground)" textAnchor="middle">
+        <text x={(g.line.x0 + g.line.x1) / 2} y={g.line.y + 26} fontSize={12.5} fill="var(--muted-foreground)" textAnchor="middle">
           12 months
         </text>
-        <text x={g.line.x1} y={g.line.y + 26} fontSize={13} fill="var(--muted-foreground)" textAnchor="end">
+        <text x={g.line.x1} y={g.line.y + 26} fontSize={12.5} fill="var(--muted-foreground)" textAnchor="end">
           Due date
         </text>
       </svg>

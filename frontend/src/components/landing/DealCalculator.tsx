@@ -64,7 +64,7 @@ function Line({ label, value, tone, strong }: { label: string; value: string; to
  */
 function DealCalculator({ className }: { className?: string }) {
   const [value, setValue] = useState(100_000_000)
-  const [discount, setDiscount] = useState(3)
+  const [discount, setDiscount] = useState(10)
   const [term, setTerm] = useState(12)
 
   const today = value * (1 - discount / 100)
@@ -88,7 +88,7 @@ function DealCalculator({ className }: { className?: string }) {
             id="deal-discount"
             type="range"
             min={1}
-            max={10}
+            max={15}
             step={0.5}
             value={discount}
             onChange={(e) => setDiscount(Number(e.target.value))}
@@ -96,7 +96,7 @@ function DealCalculator({ className }: { className?: string }) {
           />
           <div className="text-muted-foreground tabular flex justify-between text-xs">
             <span>1%</span>
-            <span>10%</span>
+            <span>15%</span>
           </div>
         </div>
         <Segmented label="Time to due date" options={TERMS.map((t) => ({ v: t, label: `${t} mo` }))} value={term} onChange={setTerm} />
@@ -115,9 +115,14 @@ function DealCalculator({ className }: { className?: string }) {
           </span>
         </div>
 
-        {/* The split. */}
+        {/* The split of the repayment, not the investor's return. */}
         <div className="flex flex-col gap-2.5">
-          <div className="flex h-3 gap-1 overflow-hidden rounded-full" role="img" aria-label={`${100 - discount}% to the business today, ${discount}% to investors at the due date`}>
+          <span className="text-muted-foreground text-xs">Split of the {usd.format(value)} repayment</span>
+          <div
+            className="flex h-3 gap-1 overflow-hidden rounded-full"
+            role="img"
+            aria-label={`Of the ${usd.format(value)} repayment, ${100 - discount}% goes to the business today and ${discount}% is the investors' profit at the due date`}
+          >
             <span className="bg-primary rounded-full transition-[flex-grow] duration-300" style={{ flexGrow: 100 - discount }} />
             <span className="bg-yield min-w-1.5 rounded-full transition-[flex-grow] duration-300" style={{ flexGrow: discount }} />
           </div>
@@ -128,7 +133,7 @@ function DealCalculator({ className }: { className?: string }) {
             </span>
             <span className="flex items-center gap-1.5">
               <span className="bg-yield size-2 rounded-full" aria-hidden />
-              Investor return, {pct(discount)}
+              Investor profit, {pct(discount)}
             </span>
           </div>
         </div>
@@ -137,8 +142,8 @@ function DealCalculator({ className }: { className?: string }) {
           <Line label={`Repaid to holders in ${term} months`} value={usd.format(value)} strong />
           <Line label="Investors earn" value={`+${usd.format(profit)}`} tone="text-yield" strong />
           <Line label="Return on what they paid" value={pct(ret)} tone="text-yield" />
-          <Line label="Simple yearly rate" value={`≈ ${pct(yearly)}`} />
-        </dl>
+          <Line label="Simple yearly rate" value={`≈ ${pct(yearly)}`} />        </dl>
+        <p className="text-muted-foreground -mt-4 text-xs">Investors carry the risk that the seller doesn’t repay.</p>
       </div>
     </div>
   )
