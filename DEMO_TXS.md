@@ -24,14 +24,18 @@ transaction exists for it. Settlement then paid whoever held the units.
 
 ## World ID join
 
-World ID's simulator on [`InvestorGate`](https://explorer.testnet.whitechain.io/address/0x5d008711c2301AE2C1cC45c4667971db02AD5292),
-so these are staging proofs, not real humans. No Admin was involved in the join.
+World ID's simulator, so these are staging proofs, not real humans. No Admin was involved in the joins.
+These ran on our [first gate](https://explorer.testnet.whitechain.io/address/0x5d008711c2301AE2C1cC45c4667971db02AD5292). We then replaced it
+with the [current gate](https://explorer.testnet.whitechain.io/address/0x63152Da7dd72fc81bfB65d36f75D29f7Dd6f37B9), which adds an Admin reset
+so the demo can run again, and removed the first gate's admin role.
 
 | Step | Wallet | Result | Transaction |
 |---|---|---|---|
 | Gate deployed | Admin | `InvestorGate` created and made an admin of `UpfrontAccess` | [`0x52893918…`](https://explorer.testnet.whitechain.io/tx/0x5289391812c81d94901ae1464b429caf7242ef7add7327a3c1fde9bd21605945) and [`0x401a614d…`](https://explorer.testnet.whitechain.io/tx/0x401a614d03d67175556863558d1d90676d455b9dc9a3a1a862c3939a415235f1) |
 | **Join** | Test A | **Verified with World ID, and the wallet got the Investor role** | [`0x286dcc34…`](https://explorer.testnet.whitechain.io/tx/0x286dcc344221760786ecba4769e544601fee56f49c9b6de6b709f6b40b813a35) |
 | Refused | Test B, same human | Refused before sending, so no transaction exists | None |
+| **Join, new action** | Test C | **A new action name gave a new nullifier, so a new wallet joined** | [`0x95427ea3…`](https://explorer.testnet.whitechain.io/tx/0x95427ea337a63efb75a09e0cc2d8133554b411c26ce90264d9601ee2b98304bf) |
+| Gate replaced | Admin | [New gate deployed](https://explorer.testnet.whitechain.io/tx/0x288ab23c2254a975b873f847c1f8107ac8151b0b5c20946331352b76d72ff957), and the first gate and its two wallets revoked | [`0xfd3fbe2d…`](https://explorer.testnet.whitechain.io/tx/0xfd3fbe2d1a181a722c526f4f226ed9eec7b2198cac6172a926a1dc247688acc4) |
 
 ## Earlier run at a 3% discount
 

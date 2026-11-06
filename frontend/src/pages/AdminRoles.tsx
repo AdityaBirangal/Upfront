@@ -17,6 +17,7 @@ import EmptyState from '@/components/EmptyState.tsx'
 import ErrorNote from '@/components/ErrorNote.tsx'
 import Identicon from '@/components/Identicon.tsx'
 import PageHeader from '@/components/PageHeader.tsx'
+import ResetWorldInvestors from '@/components/ResetWorldInvestors.tsx'
 import Section from '@/components/Section.tsx'
 import TxStatus from '@/components/TxStatus.tsx'
 import { useRoleMembers, useRoles } from '@/chain.ts'
@@ -175,6 +176,8 @@ function AdminRoles() {
           {accessNote}
         </p>
       )}
+
+      {isAdmin && gate && <ResetWorldInvestors contract={gate} />}
 
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
         <Section title="Assign a role">

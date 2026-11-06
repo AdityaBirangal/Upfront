@@ -89,7 +89,7 @@ can.
 |---|---|
 | `UpfrontAccess` | [`0x7f8dF0d47e0265Df7E1f8AF1d091757B193cECd2`](https://explorer.testnet.whitechain.io/address/0x7f8dF0d47e0265Df7E1f8AF1d091757B193cECd2) |
 | `Upfront` | [`0x50eD2278EBCAA43eE213596881157a80e5041BC9`](https://explorer.testnet.whitechain.io/address/0x50eD2278EBCAA43eE213596881157a80e5041BC9) |
-| `InvestorGate` | [`0x5d008711c2301AE2C1cC45c4667971db02AD5292`](https://explorer.testnet.whitechain.io/address/0x5d008711c2301AE2C1cC45c4667971db02AD5292) |
+| `InvestorGate` | [`0x63152Da7dd72fc81bfB65d36f75D29f7Dd6f37B9`](https://explorer.testnet.whitechain.io/address/0x63152Da7dd72fc81bfB65d36f75D29f7Dd6f37B9) |
 
 **USDT settlement:** [https://explorer.testnet.whitechain.io/tx/0x43cbea02dd197d9293a21e2b5e677a84eac77a141ea746a6e47776e1c728f072](https://explorer.testnet.whitechain.io/tx/0x43cbea02dd197d9293a21e2b5e677a84eac77a141ea746a6e47776e1c728f072).
 Every step of that run is linked in [`DEMO_TXS.md`](DEMO_TXS.md).
@@ -123,11 +123,22 @@ one-human rule is enforced onchain.
 
 World ID is optional. Without it the app works as before, and an Admin can still grant the role.
 
-**Limits:** the demo uses World's simulator, so its proofs are staging proofs, not real humans. Whitechain
+**What's next:** a regulated deal may need more than uniqueness, such as screening investors against
+sanctions rules. We intend to use World ID's nationality check as one input to that, without handling
+anyone's document data. It's still in preview, so today we use Proof of Human, which is the minimum the
+cap needs. Nationality alone wouldn't make Upfront OFAC compliant, because sanctions also depend on
+listed people and location, so production would need full sanctions screening.
+
+**Limits:** the demo uses World's simulator, so its proofs are staging proofs, not real humans. In our
+tests every simulator identity counted as the same human, so only one wallet can join at a time. If you
+try the live demo after someone else joined, you'll be refused, which is the rule working. An Admin can
+reset the gate from the Roles page so the demo can run again. That removes the wallets that joined and
+lets the same humans rejoin, so "one human, one wallet" holds between resets. It gives an Admin no new
+power over investors, because an Admin can already add or remove any investor by hand. Whitechain
 can't check the proof itself, so the gate trusts the backend's signing key: if that key leaked, someone
 could add fake investors, but couldn't touch funds or any other role. The gate must be an admin of
-`UpfrontAccess`, because that's the only role that can grant `INVESTOR_ROLE`. It's safe because `join` is
-its only function that changes anything, and it can't be upgraded.
+`UpfrontAccess`, because that's the only role that can grant `INVESTOR_ROLE`. It's safe because it can
+only add investors through `join` and remove wallets that joined through it, and it can't be upgraded.
 
 [Our notes for World](WORLD_FEEDBACK.md) cover how integration went.
 
