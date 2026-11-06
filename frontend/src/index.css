@@ -49,6 +49,10 @@
   --state-defaulted: oklch(0.55 0.21 25);
   --state-closed: oklch(0.58 0.015 262);
   --warning: oklch(0.6 0.14 65);
+
+  /* Landing: the closing call-to-action band. */
+  --band: oklch(0.52 0.19 263);
+  --band-foreground: oklch(0.99 0 0);
 }
 
 .dark {
@@ -86,6 +90,9 @@
   --state-defaulted: oklch(0.7 0.19 25);
   --state-closed: oklch(0.62 0.015 262);
   --warning: oklch(0.8 0.14 75);
+
+  --band: oklch(0.34 0.13 263);
+  --band-foreground: oklch(0.97 0.01 258);
 }
 
 @theme inline {
@@ -124,6 +131,8 @@
   --color-yield: var(--yield);
   --color-yield-soft: var(--yield-soft);
   --color-warning: var(--warning);
+  --color-band: var(--band);
+  --color-band-foreground: var(--band-foreground);
 
   --color-state-created: var(--state-created);
   --color-state-listed: var(--state-listed);
@@ -166,6 +175,12 @@
     text-underline-offset: 3px;
   }
 
+  @media (prefers-reduced-motion: no-preference) {
+    html {
+      scroll-behavior: smooth;
+    }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
@@ -173,5 +188,13 @@
       animation-duration: 0.01ms !important;
       transition-duration: 0.01ms !important;
     }
+  }
+}
+
+/* Landing: unit segments rise into place. */
+@keyframes seg-in {
+  from {
+    opacity: 0.2;
+    transform: scaleY(0.35);
   }
 }
