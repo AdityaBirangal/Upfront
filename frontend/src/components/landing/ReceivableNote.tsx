@@ -50,7 +50,7 @@ function Figure({ label, value, unit, className }: { label: string; value: strin
 function ReceivableNote({ className }: { className?: string }) {
   const filled = Math.round(SEGMENTS * SOLD)
   return (
-    <div className={cn('relative mx-auto w-full max-w-[29rem]', className)}>
+    <div className={cn('text-foreground relative mx-auto w-full max-w-[29rem]', className)}>
       {/* A second note behind, so it reads as one deal among many. */}
       <div
         className="bg-card/70 absolute inset-x-6 -top-4 h-40 rounded-2xl border shadow-sm md:-top-5 md:inset-x-8"

@@ -8,11 +8,13 @@ import Compare from '@/components/landing/Compare.tsx'
 import DealCalculator from '@/components/landing/DealCalculator.tsx'
 import FlowAnimation from '@/components/landing/FlowAnimation.tsx'
 import Guilloche from '@/components/landing/Guilloche.tsx'
+import HeroBackdrop from '@/components/landing/HeroBackdrop.tsx'
 import LiveStats from '@/components/landing/LiveStats.tsx'
 import ReceivableNote from '@/components/landing/ReceivableNote.tsx'
 import Rules from '@/components/landing/Rules.tsx'
 import { Eyebrow, LiveDot, SectionHead, WRAP } from '@/components/landing/kit.tsx'
 import { explorerTxUrl } from '@/contracts.ts'
+import { useTheme } from '@/lib/theme.ts'
 import { cn } from '@/lib/utils'
 
 /** The demo run's settlement: one transaction paying both investors. */
@@ -90,39 +92,26 @@ function Header() {
   )
 }
 
-/** Faint drafting grid behind the hero, fading out from the top right. */
-function Blueprint() {
-  return (
-    <div
-      className="pointer-events-none absolute inset-0 opacity-70 dark:opacity-50"
-      style={{
-        backgroundImage:
-          'linear-gradient(to right, var(--border) 1px, transparent 1px), linear-gradient(to bottom, var(--border) 1px, transparent 1px)',
-        backgroundSize: '56px 56px',
-        maskImage: 'radial-gradient(ellipse 70% 75% at 75% 20%, black 20%, transparent 70%)',
-        WebkitMaskImage: 'radial-gradient(ellipse 70% 75% at 75% 20%, black 20%, transparent 70%)',
-      }}
-      aria-hidden
-    />
-  )
-}
-
 function Home() {
+  const { resolved } = useTheme()
   return (
     <div className="flex min-h-svh flex-col">
       <Header />
 
       <main className="flex-1">
-        {/* Hero: the thesis on the left, the instrument on the right. */}
-        <section className="relative overflow-hidden">
-          <Blueprint />
+        {/*
+          Hero: the site the money builds. Always dark, so the night footage reads in both themes.
+          The thesis on the left and the receivable on the right, with the footage behind both.
+        */}
+        <section className="dark bg-background text-foreground relative">
+          <HeroBackdrop />
           <div
             className={`${WRAP} relative grid items-center gap-14 pt-14 pb-20 md:pt-20 lg:grid-cols-[minmax(0,1fr)_minmax(0,29rem)] lg:gap-16 lg:pt-24 lg:pb-32`}
           >
             <div className="flex flex-col items-start gap-7">
               <a
                 href="#live"
-                className="bg-card text-muted-foreground hover:text-foreground inline-flex items-center gap-2 rounded-full border py-1 pr-3 pl-2.5 text-xs font-medium shadow-xs transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                className="bg-card/70 text-muted-foreground hover:text-foreground inline-flex items-center gap-2 rounded-full border py-1 pr-3 pl-2.5 text-xs font-medium shadow-xs backdrop-blur-md transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
               >
                 <LiveDot />
                 Live on Whitechain Sepolia
@@ -145,15 +134,19 @@ function Home() {
                 </Button>
               </div>
             </div>
-            <ReceivableNote className="lg:mr-0" />
+            {/* The hero is always dark; the card follows the page theme, so it's white in light mode. */}
+            <ReceivableNote className={resolved === 'light' ? 'light' : undefined} />
           </div>
         </section>
 
         {/* At a glance. */}
-        <section aria-label="At a glance" className="bg-card/60 border-y">
+        <section aria-label="At a glance" className="bg-card/60 border-b">
           <dl className={`${WRAP} grid grid-cols-2 gap-x-6 md:grid-cols-4 md:gap-x-0`}>
             {FACTS.map((f) => (
-              <div key={f.value} className="flex flex-col gap-1.5 py-7 md:border-l md:px-8 md:py-10 md:first:border-l-0 md:first:pl-0">
+              <div
+                key={f.value}
+                className="flex flex-col gap-1.5 py-7 md:border-l md:px-8 md:py-10 md:first:border-l-0 md:first:pl-0"
+              >
                 <dt className="text-muted-foreground order-last text-sm">{f.label}</dt>
                 <dd className="tabular text-3xl font-semibold tracking-[-0.035em] md:text-4xl">{f.value}</dd>
               </div>
