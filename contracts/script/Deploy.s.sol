@@ -11,6 +11,7 @@ import {UpfrontAccess} from "../src/UpfrontAccess.sol";
 /// The final V6 deploy leaves that wallet out.
 contract Deploy is Script {
     address constant USDT = 0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7;
+    uint64 constant GRACE_PERIOD = 120; // short for the demo
 
     address constant ADMIN = 0x73374fe93c8e296c49E76D81D335bCe816bfa64B;
     address constant SELLER = 0x8277639565AAE46ba7D3d8fA73A3fFC0b9c5BF50;
@@ -24,7 +25,7 @@ contract Deploy is Script {
 
         vm.startBroadcast(ADMIN);
         access = new UpfrontAccess(ADMIN);
-        upfront = new Upfront(access, IERC20Metadata(USDT), "");
+        upfront = new Upfront(access, IERC20Metadata(USDT), "", GRACE_PERIOD);
 
         bytes32 seller = access.SELLER_ROLE();
         bytes32 buyer = access.BUYER_ROLE();

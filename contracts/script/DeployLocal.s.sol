@@ -24,7 +24,7 @@ contract DeployLocal is Script {
         vm.startBroadcast(vm.deriveKey(MNEMONIC, 0));
         usdt = new MockUSDT();
         access = new UpfrontAccess(admin);
-        upfront = new Upfront(access, usdt, "");
+        upfront = new Upfront(access, usdt, "", 120);
 
         usdt.mint(buyer, 20e6);
         usdt.mint(investor1, 12e6);

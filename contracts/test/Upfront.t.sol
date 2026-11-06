@@ -25,8 +25,12 @@ contract UpfrontTest is Test {
     event ReceivableListed(uint256 indexed id, uint16 discountBps, uint256 unitPrice, uint256 maxUnitsPerInvestor);
     event Invested(uint256 indexed id, address indexed investor, uint256 units, uint256 paid);
     event ReceivableFunded(uint256 indexed id);
+    event Settled(uint256 indexed id, address indexed payer, uint256 amount);
+    event Claimed(uint256 indexed id, address indexed holder, uint256 units, uint256 amount);
+    event ReceivableDefaulted(uint256 indexed id);
 
     uint256 constant TEN_USDT = 10_000_000;
+    uint64 constant GRACE = 120;
     bytes32 constant DOC = keccak256("agreement");
     string constant REF = "RCV-1001";
 
@@ -45,7 +49,7 @@ contract UpfrontTest is Test {
     function setUp() public {
         access = new UpfrontAccess(admin);
         usdt = new MockUSDT();
-        upfront = new Upfront(access, usdt, "");
+        upfront = new Upfront(access, usdt, "", GRACE);
         dueDate = uint64(block.timestamp + 1 days);
 
         vm.startPrank(admin);
@@ -57,6 +61,7 @@ contract UpfrontTest is Test {
 
         _fund(investor);
         _fund(investor2);
+        _fund(buyer);
     }
 
     function _fund(address wallet) private {
@@ -78,10 +83,10 @@ contract UpfrontTest is Test {
 
     function test_ConstructorRejectsZeroAddresses() public {
         vm.expectRevert(Upfront.ZeroAddress.selector);
-        new Upfront(UpfrontAccess(address(0)), usdt, "");
+        new Upfront(UpfrontAccess(address(0)), usdt, "", GRACE);
 
         vm.expectRevert(Upfront.ZeroAddress.selector);
-        new Upfront(access, MockUSDT(address(0)), "");
+        new Upfront(access, MockUSDT(address(0)), "", GRACE);
     }
 
     function test_CreateMintsAllUnitsToSeller() public {
@@ -966,5 +971,312 @@ contract UpfrontTest is Test {
         assertEq(usdt.balanceOf(seller), expected);
         assertEq(upfront.balanceOf(investor, id), units);
         assertEq(upfront.balanceOf(seller, id), 10 - uint256(units));
+    }
+
+    // Settle
+
+    function _settledByBuyer(uint256 id) private {
+        vm.warp(dueDate);
+        vm.prank(buyer);
+        upfront.settle(id);
+    }
+
+    function _claim(address who, uint256 id) private {
+        vm.prank(who);
+        upfront.claim(id);
+    }
+
+    function test_GracePeriodIsStored() public view {
+        assertEq(upfront.gracePeriod(), GRACE);
+    }
+
+    function test_SettlePullsFaceValueFromBuyer() public {
+        uint256 id = _funded();
+        uint256 start = usdt.balanceOf(buyer);
+        vm.warp(dueDate);
+
+        vm.expectEmit(address(upfront));
+        emit Settled(id, buyer, TEN_USDT);
+        vm.prank(buyer);
+        upfront.settle(id);
+
+        assertEq(usdt.balanceOf(buyer), start - TEN_USDT);
+        assertEq(usdt.balanceOf(address(upfront)), TEN_USDT);
+        assertEq(uint8(upfront.getReceivable(id).status), uint8(Status.Settled));
+    }
+
+    function test_SettleRevertsBeforeDueDate() public {
+        uint256 id = _funded();
+        vm.warp(dueDate - 1);
+
+        vm.expectRevert(Upfront.NotDue.selector);
+        vm.prank(buyer);
+        upfront.settle(id);
+    }
+
+    function test_AnyoneCanSettleVerifiedReceivable() public {
+        uint256 id = _funded();
+        _verify(id);
+        vm.warp(dueDate);
+
+        vm.prank(stranger);
+        upfront.settle(id);
+        assertEq(uint8(upfront.getReceivable(id).status), uint8(Status.Settled));
+    }
+
+    function test_OnlyBuyerCanSettleUnverifiedReceivable() public {
+        uint256 id = _funded();
+        vm.warp(dueDate);
+
+        vm.expectRevert(Upfront.NotBuyer.selector);
+        vm.prank(stranger);
+        upfront.settle(id);
+
+        vm.prank(buyer);
+        upfront.settle(id);
+        assertEq(uint8(upfront.getReceivable(id).status), uint8(Status.Settled));
+    }
+
+    /// @dev The buyer's allowance is meant for a real receivable. A seller names that buyer on a
+    /// fake one, and tries to collect the allowance themselves.
+    function test_FakeReceivableCannotSpendBuyerAllowance() public {
+        address cheat = makeAddr("cheat");
+        bytes32 role = access.SELLER_ROLE();
+        vm.prank(admin);
+        access.grantRole(role, cheat);
+
+        uint256 start = usdt.balanceOf(buyer);
+        uint64 soon = uint64(block.timestamp + 1);
+        vm.prank(cheat);
+        uint256 fake = upfront.createReceivable(buyer, TEN_USDT, soon, keccak256("fake"), "FAKE");
+        vm.prank(cheat);
+        upfront.listReceivable(fake, DISCOUNT, CAP);
+        vm.warp(soon);
+
+        vm.expectRevert(Upfront.NotBuyer.selector);
+        vm.prank(cheat);
+        upfront.settle(fake);
+
+        assertEq(usdt.balanceOf(buyer), start);
+        assertEq(usdt.balanceOf(cheat), 0);
+    }
+
+    function test_SecondSettleReverts() public {
+        uint256 id = _funded();
+        _settledByBuyer(id);
+
+        vm.expectRevert(abi.encodeWithSelector(Upfront.InvalidStatus.selector, Status.Settled));
+        vm.prank(buyer);
+        upfront.settle(id);
+    }
+
+    function test_SettleWorksDuringAndAfterGrace() public {
+        uint256 id = _funded();
+        vm.warp(uint256(dueDate) + GRACE + 1);
+
+        vm.prank(buyer);
+        upfront.settle(id);
+        assertEq(uint8(upfront.getReceivable(id).status), uint8(Status.Settled));
+    }
+
+    function test_SettleRevertsWithoutAllowance() public {
+        uint256 id = _funded();
+        vm.prank(buyer);
+        usdt.approve(address(upfront), 0);
+        vm.warp(dueDate);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(IERC20Errors.ERC20InsufficientAllowance.selector, address(upfront), 0, TEN_USDT)
+        );
+        vm.prank(buyer);
+        upfront.settle(id);
+        assertEq(uint8(upfront.getReceivable(id).status), uint8(Status.Funded));
+    }
+
+    function test_CannotSettleCreatedOrClosedReceivable() public {
+        uint256 id = _create();
+        vm.warp(dueDate);
+
+        vm.expectRevert(abi.encodeWithSelector(Upfront.InvalidStatus.selector, Status.Created));
+        vm.prank(buyer);
+        upfront.settle(id);
+
+        _cancel(id);
+        vm.expectRevert(abi.encodeWithSelector(Upfront.InvalidStatus.selector, Status.Cancelled));
+        vm.prank(buyer);
+        upfront.settle(id);
+    }
+
+    // Claim
+
+    function test_InvestorsClaimExactAmounts() public {
+        uint256 id = _funded();
+        _settledByBuyer(id);
+        uint256 first = usdt.balanceOf(investor);
+        uint256 second = usdt.balanceOf(investor2);
+
+        vm.expectEmit(address(upfront));
+        emit Claimed(id, investor, 6, 6_000_000);
+        _claim(investor, id);
+        _claim(investor2, id);
+
+        assertEq(usdt.balanceOf(investor), first + 6_000_000);
+        assertEq(usdt.balanceOf(investor2), second + 4_000_000);
+        assertEq(usdt.balanceOf(address(upfront)), 0);
+        assertEq(upfront.totalSupply(id), 0);
+    }
+
+    function test_InvestorProfitIsThreePercent() public {
+        uint256 id = _listed();
+        uint256 start = usdt.balanceOf(investor);
+        _invest(investor, id, 6);
+        _settledByBuyer(id);
+        _claim(investor, id);
+
+        assertEq(usdt.balanceOf(investor), start + 180_000);
+    }
+
+    function test_SecondClaimReverts() public {
+        uint256 id = _funded();
+        _settledByBuyer(id);
+        _claim(investor, id);
+
+        vm.expectRevert(Upfront.NothingToClaim.selector);
+        _claim(investor, id);
+    }
+
+    function test_StrangerHasNothingToClaim() public {
+        uint256 id = _funded();
+        _settledByBuyer(id);
+
+        vm.expectRevert(Upfront.NothingToClaim.selector);
+        _claim(stranger, id);
+    }
+
+    function test_CannotClaimBeforeSettlement() public {
+        uint256 id = _funded();
+        vm.expectRevert(abi.encodeWithSelector(Upfront.InvalidStatus.selector, Status.Funded));
+        _claim(investor, id);
+    }
+
+    function test_SellerClaimsUnsoldUnits() public {
+        uint256 id = _listed();
+        _invest(investor, id, 6);
+        _settledByBuyer(id);
+
+        _claim(seller, id);
+        _claim(investor, id);
+
+        assertEq(usdt.balanceOf(seller), 5_820_000 + 4_000_000);
+        assertEq(usdt.balanceOf(address(upfront)), 0);
+        assertEq(upfront.totalSupply(id), 0);
+    }
+
+    function test_ListedWithNoSalesPaysSellerInFull() public {
+        uint256 id = _listed();
+        _settledByBuyer(id);
+        _claim(seller, id);
+
+        assertEq(usdt.balanceOf(seller), TEN_USDT);
+    }
+
+    function test_ResalePaysTheNewHolder() public {
+        uint256 id = _funded();
+        vm.prank(investor);
+        upfront.safeTransferFrom(investor, stranger, id, 2, "");
+        _settledByBuyer(id);
+
+        _claim(stranger, id);
+        _claim(investor, id);
+
+        assertEq(usdt.balanceOf(stranger), 2_000_000);
+        assertEq(upfront.balanceOf(investor, id), 0);
+    }
+
+    function test_HolderCanClaimAfterRoleRevoked() public {
+        uint256 id = _funded();
+        bytes32 role = access.INVESTOR_ROLE();
+        vm.prank(admin);
+        access.revokeRole(role, investor);
+        _settledByBuyer(id);
+
+        _claim(investor, id);
+        assertEq(upfront.balanceOf(investor, id), 0);
+    }
+
+    // Default
+
+    function test_MarkDefaultAfterGrace() public {
+        uint256 id = _funded();
+        vm.warp(uint256(dueDate) + GRACE + 1);
+
+        vm.expectEmit(address(upfront));
+        emit ReceivableDefaulted(id);
+        vm.prank(stranger);
+        upfront.markDefault(id);
+
+        assertEq(uint8(upfront.getReceivable(id).status), uint8(Status.Defaulted));
+        assertEq(upfront.balanceOf(investor, id), 6);
+    }
+
+    function test_MarkDefaultRevertsBeforeGraceEnds() public {
+        uint256 id = _funded();
+        vm.warp(uint256(dueDate) + GRACE);
+
+        vm.expectRevert(Upfront.GraceNotOver.selector);
+        upfront.markDefault(id);
+    }
+
+    function test_MarkDefaultRevertsAfterSettled() public {
+        uint256 id = _funded();
+        _settledByBuyer(id);
+        vm.warp(uint256(dueDate) + GRACE + 1);
+
+        vm.expectRevert(abi.encodeWithSelector(Upfront.InvalidStatus.selector, Status.Settled));
+        upfront.markDefault(id);
+    }
+
+    function test_DefaultedIsFinal() public {
+        uint256 id = _funded();
+        vm.warp(uint256(dueDate) + GRACE + 1);
+        upfront.markDefault(id);
+        bytes memory invalid = abi.encodeWithSelector(Upfront.InvalidStatus.selector, Status.Defaulted);
+
+        vm.expectRevert(invalid);
+        vm.prank(buyer);
+        upfront.settle(id);
+
+        vm.expectRevert(invalid);
+        _claim(investor, id);
+
+        vm.expectRevert(invalid);
+        upfront.markDefault(id);
+    }
+
+    function test_UnknownIdRevertsOnPaymentFunctions() public {
+        vm.expectRevert(Upfront.UnknownReceivable.selector);
+        upfront.settle(1);
+
+        vm.expectRevert(Upfront.UnknownReceivable.selector);
+        upfront.claim(1);
+
+        vm.expectRevert(Upfront.UnknownReceivable.selector);
+        upfront.markDefault(1);
+    }
+
+    function testFuzz_ContractHoldsExactlyUnclaimedValue(uint8 first) public {
+        uint256 units = bound(first, 1, 9);
+        uint256 id = _create();
+        vm.prank(seller);
+        upfront.listReceivable(id, DISCOUNT, 10);
+        _invest(investor, id, units);
+        _invest(investor2, id, 10 - units);
+        _settledByBuyer(id);
+
+        assertEq(usdt.balanceOf(address(upfront)), upfront.totalSupply(id) * upfront.UNIT());
+        _claim(investor, id);
+        assertEq(usdt.balanceOf(address(upfront)), upfront.totalSupply(id) * upfront.UNIT());
+        _claim(investor2, id);
+        assertEq(usdt.balanceOf(address(upfront)), 0);
     }
 }

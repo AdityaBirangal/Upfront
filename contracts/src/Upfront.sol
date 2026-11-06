@@ -41,7 +41,7 @@ struct Receivable {
 /// @title Upfront
 /// @notice ERC-1155 where each receivable is one token ID and 1 unit pays 1 USDT after settlement.
 contract Upfront is ERC1155Supply, ReentrancyGuard {
-    uint256 public constant VERSION = 3;
+    uint256 public constant VERSION = 4;
 
     uint256 private constant BPS = 10_000;
 
@@ -50,6 +50,9 @@ contract Upfront is ERC1155Supply, ReentrancyGuard {
 
     /// @notice USDT base units in one unit, read from the token rather than hardcoded.
     uint256 public immutable UNIT;
+
+    /// @notice Seconds after the due date before an unpaid receivable can be marked Defaulted.
+    uint64 public immutable gracePeriod;
 
     /// @notice Number of receivables created. Ids run 1..receivableCount.
     uint256 public receivableCount;
@@ -78,6 +81,9 @@ contract Upfront is ERC1155Supply, ReentrancyGuard {
     event ReceivableListed(uint256 indexed id, uint16 discountBps, uint256 unitPrice, uint256 maxUnitsPerInvestor);
     event Invested(uint256 indexed id, address indexed investor, uint256 units, uint256 paid);
     event ReceivableFunded(uint256 indexed id);
+    event Settled(uint256 indexed id, address indexed payer, uint256 amount);
+    event Claimed(uint256 indexed id, address indexed holder, uint256 units, uint256 amount);
+    event ReceivableDefaulted(uint256 indexed id);
 
     error ZeroAddress();
     error NotAllowed(address account, bytes32 role);
@@ -100,12 +106,16 @@ contract Upfront is ERC1155Supply, ReentrancyGuard {
     error ExceedsAvailable();
     error ExceedsCap();
     error PartyCannotInvest();
+    error NotDue();
+    error GraceNotOver();
+    error NothingToClaim();
 
-    constructor(UpfrontAccess access_, IERC20Metadata usdt_, string memory uri_) ERC1155(uri_) {
+    constructor(UpfrontAccess access_, IERC20Metadata usdt_, string memory uri_, uint64 gracePeriod_) ERC1155(uri_) {
         if (address(access_) == address(0) || address(usdt_) == address(0)) revert ZeroAddress();
         access = access_;
         usdt = usdt_;
         UNIT = 10 ** usdt_.decimals();
+        gracePeriod = gracePeriod_;
     }
 
     /// @notice Creates a receivable owed by `buyer` and mints all its units to the caller.
@@ -235,6 +245,45 @@ contract Upfront is ERC1155Supply, ReentrancyGuard {
         _safeTransferFrom(seller, msg.sender, id, units, "");
     }
 
+    /// @notice Collects the face value from the buyer once it's due, so holders can claim.
+    /// @dev Anyone can trigger a verified receivable, because the buyer agreed to it. An unverified
+    /// one can only be settled by the buyer, or any seller could name a buyer on a fake receivable
+    /// and spend the USDT allowance that buyer gave for a real one.
+    function settle(uint256 id) external nonReentrant {
+        Receivable storage r = _get(id);
+        _requireOpenForPayment(r);
+        if (block.timestamp < r.dueDate) revert NotDue();
+        if (!r.verified && msg.sender != r.buyer) revert NotBuyer();
+
+        r.status = Status.Settled;
+        emit Settled(id, r.buyer, r.faceValue);
+        SafeERC20.safeTransferFrom(usdt, r.buyer, address(this), r.faceValue);
+    }
+
+    /// @notice Burns the caller's units and pays 1 USDT per unit. Sellers claim unsold units here.
+    /// @dev Needs no role, so a holder keeps the right to be paid after a role is revoked.
+    function claim(uint256 id) external nonReentrant {
+        Receivable storage r = _get(id);
+        if (r.status != Status.Settled) revert InvalidStatus(r.status);
+        uint256 units = balanceOf(msg.sender, id);
+        if (units == 0) revert NothingToClaim();
+
+        uint256 amount = units * UNIT;
+        emit Claimed(id, msg.sender, units, amount);
+        _burn(msg.sender, id, units);
+        SafeERC20.safeTransfer(usdt, msg.sender, amount);
+    }
+
+    /// @notice Records a default once the grace period has passed. Defaulted is final.
+    function markDefault(uint256 id) external {
+        Receivable storage r = _get(id);
+        _requireOpenForPayment(r);
+        if (block.timestamp <= uint256(r.dueDate) + gracePeriod) revert GraceNotOver();
+
+        r.status = Status.Defaulted;
+        emit ReceivableDefaulted(id);
+    }
+
     /// @notice Returns a receivable. Reverts if the id doesn't exist.
     function getReceivable(uint256 id) external view returns (Receivable memory) {
         return _get(id);
@@ -268,6 +317,10 @@ contract Upfront is ERC1155Supply, ReentrancyGuard {
     function _requireUnsold(Receivable storage r) private view {
         if (r.status != Status.Created && r.status != Status.Listed) revert InvalidStatus(r.status);
         if (r.unitsSold != 0) revert UnitsAlreadySold();
+    }
+
+    function _requireOpenForPayment(Receivable storage r) private view {
+        if (r.status != Status.Listed && r.status != Status.Funded) revert InvalidStatus(r.status);
     }
 
     function _requireRole(address account, bytes32 role) private view {
