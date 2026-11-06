@@ -21,6 +21,15 @@ enum Status {
     Cancelled
 }
 
+/// @notice Why a transfer between holders was refused.
+enum TransferBlock {
+    ReceiverNotInvestor,
+    ReceiverIsParty,
+    ReceivableNotActive,
+    PastDueDate,
+    OverCap
+}
+
 /// @notice Final from V2. Fields a version doesn't use yet stay zero.
 struct Receivable {
     address seller;
@@ -44,7 +53,7 @@ struct Receivable {
 contract Upfront is ERC1155Supply, ReentrancyGuard {
     using EnumerableSet for EnumerableSet.AddressSet;
 
-    uint256 public constant VERSION = 45;
+    uint256 public constant VERSION = 50;
 
     uint256 private constant BPS = 10_000;
 
@@ -103,6 +112,7 @@ contract Upfront is ERC1155Supply, ReentrancyGuard {
     error AlreadyVerified();
     error UnitsAlreadySold();
     error UnitsLocked();
+    error TransferNotAllowed(TransferBlock reason);
     error InvalidDiscount();
     error InvalidCap();
     error InvalidUnits();
@@ -292,24 +302,42 @@ contract Upfront is ERC1155Supply, ReentrancyGuard {
     }
 
     /// @dev Every transfer passes through here, including batches and approved operators. Mints and
-    /// burns have no `from` or `to`, so they pass. Only `invest` can move a seller's units.
+    /// burns have no `from` or `to`, so they pass. Only `invest` can move a seller's units, and every
+    /// other transfer between holders must follow the transfer rules.
     function _update(address from, address to, uint256[] memory ids, uint256[] memory values) internal override {
+        bool checked = false;
         if (_funding) {
             _funding = false;
         } else if (from != address(0) && to != address(0)) {
+            checked = true;
+            bool investor = access.hasRole(access.INVESTOR_ROLE(), to);
             for (uint256 i = 0; i < ids.length; ++i) {
-                if (_receivables[ids[i]].seller == from) revert UnitsLocked();
+                _checkTransfer(from, to, investor, _receivables[ids[i]]);
             }
         }
+
         super._update(from, to, ids, values);
 
         for (uint256 i = 0; i < ids.length; ++i) {
             uint256 id = ids[i];
-            if (from != address(0) && balanceOf(from, id) == 0) _holders[id].remove(from);
-            if (to != address(0) && to != _receivables[id].seller && balanceOf(to, id) != 0) {
-                _holders[id].add(to);
+            Receivable storage r = _receivables[id];
+            // After the move, because a batch can repeat an id.
+            if (checked && balanceOf(to, id) > r.maxUnitsPerInvestor) {
+                revert TransferNotAllowed(TransferBlock.OverCap);
             }
+            if (from != address(0) && balanceOf(from, id) == 0) _holders[id].remove(from);
+            if (to != address(0) && to != r.seller && balanceOf(to, id) != 0) _holders[id].add(to);
         }
+    }
+
+    function _checkTransfer(address from, address to, bool investor, Receivable storage r) private view {
+        if (r.seller == from) revert UnitsLocked();
+        if (to == r.seller || to == r.buyer) revert TransferNotAllowed(TransferBlock.ReceiverIsParty);
+        if (!investor) revert TransferNotAllowed(TransferBlock.ReceiverNotInvestor);
+        if (r.status != Status.Listed && r.status != Status.Funded) {
+            revert TransferNotAllowed(TransferBlock.ReceivableNotActive);
+        }
+        if (block.timestamp >= r.dueDate) revert TransferNotAllowed(TransferBlock.PastDueDate);
     }
 
     /// @dev Ends a receivable that sold nothing: burns its units and frees the document for reuse.
