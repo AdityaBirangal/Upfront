@@ -5,6 +5,7 @@ import {ERC1155, ERC1155Supply} from "@openzeppelin/contracts/token/ERC1155/exte
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {UpfrontAccess} from "./UpfrontAccess.sol";
 
 /// @notice Lifecycle of a receivable. Final from V2, though later versions reach the later states.
@@ -41,7 +42,9 @@ struct Receivable {
 /// @title Upfront
 /// @notice ERC-1155 where each receivable is one token ID and 1 unit pays 1 USDT after settlement.
 contract Upfront is ERC1155Supply, ReentrancyGuard {
-    uint256 public constant VERSION = 4;
+    using EnumerableSet for EnumerableSet.AddressSet;
+
+    uint256 public constant VERSION = 45;
 
     uint256 private constant BPS = 10_000;
 
@@ -51,9 +54,6 @@ contract Upfront is ERC1155Supply, ReentrancyGuard {
     /// @notice USDT base units in one unit, read from the token rather than hardcoded.
     uint256 public immutable UNIT;
 
-    /// @notice Seconds after the due date before an unpaid receivable can be marked Defaulted.
-    uint64 public immutable gracePeriod;
-
     /// @notice Number of receivables created. Ids run 1..receivableCount.
     uint256 public receivableCount;
 
@@ -61,6 +61,9 @@ contract Upfront is ERC1155Supply, ReentrancyGuard {
     mapping(bytes32 docHash => uint256 id) public receivableIdByDocHash;
 
     mapping(uint256 id => Receivable) private _receivables;
+
+    /// @dev Everyone except the seller who holds units of a receivable, so `settle` can pay them.
+    mapping(uint256 id => EnumerableSet.AddressSet) private _holders;
 
     /// @dev Lets one `invest` transfer past `UnitsLocked`. `_update` clears it on use, before the
     /// receiver's callback runs, so the callback can't move more of the seller's units.
@@ -82,7 +85,7 @@ contract Upfront is ERC1155Supply, ReentrancyGuard {
     event Invested(uint256 indexed id, address indexed investor, uint256 units, uint256 paid);
     event ReceivableFunded(uint256 indexed id);
     event Settled(uint256 indexed id, address indexed payer, uint256 amount);
-    event Claimed(uint256 indexed id, address indexed holder, uint256 units, uint256 amount);
+    event HolderPaid(uint256 indexed id, address indexed holder, uint256 units, uint256 amount);
     event ReceivableDefaulted(uint256 indexed id);
 
     error ZeroAddress();
@@ -107,15 +110,12 @@ contract Upfront is ERC1155Supply, ReentrancyGuard {
     error ExceedsCap();
     error PartyCannotInvest();
     error NotDue();
-    error GraceNotOver();
-    error NothingToClaim();
 
-    constructor(UpfrontAccess access_, IERC20Metadata usdt_, string memory uri_, uint64 gracePeriod_) ERC1155(uri_) {
+    constructor(UpfrontAccess access_, IERC20Metadata usdt_, string memory uri_) ERC1155(uri_) {
         if (address(access_) == address(0) || address(usdt_) == address(0)) revert ZeroAddress();
         access = access_;
         usdt = usdt_;
         UNIT = 10 ** usdt_.decimals();
-        gracePeriod = gracePeriod_;
     }
 
     /// @notice Creates a receivable owed by `buyer` and mints all its units to the caller.
@@ -245,43 +245,45 @@ contract Upfront is ERC1155Supply, ReentrancyGuard {
         _safeTransferFrom(seller, msg.sender, id, units, "");
     }
 
-    /// @notice Collects the face value from the buyer once it's due, so holders can claim.
-    /// @dev Anyone can trigger a verified receivable, because the buyer agreed to it. An unverified
-    /// one can only be settled by the buyer, or any seller could name a buyer on a fake receivable
-    /// and spend the USDT allowance that buyer gave for a real one.
+    /// @notice Repays every holder 1 USDT per unit in one transaction, and burns all units.
+    /// @dev The seller must have approved the total first. No role is needed, so a seller whose role
+    /// was revoked can still repay. Unsold units are burned without payment.
     function settle(uint256 id) external nonReentrant {
         Receivable storage r = _get(id);
+        if (msg.sender != r.seller) revert NotSeller();
         _requireOpenForPayment(r);
-        if (block.timestamp < r.dueDate) revert NotDue();
-        if (!r.verified && msg.sender != r.buyer) revert NotBuyer();
+        if (block.timestamp >= r.dueDate) revert DueDatePassed();
 
+        address seller = r.seller;
+        uint256 unsold = balanceOf(seller, id);
         r.status = Status.Settled;
-        emit Settled(id, r.buyer, r.faceValue);
-        SafeERC20.safeTransferFrom(usdt, r.buyer, address(this), r.faceValue);
+        emit Settled(id, seller, (totalSupply(id) - unsold) * UNIT);
+
+        address[] memory holders = _holders[id].values();
+        for (uint256 i = 0; i < holders.length; ++i) {
+            address holder = holders[i];
+            uint256 units = balanceOf(holder, id);
+            uint256 amount = units * UNIT;
+            emit HolderPaid(id, holder, units, amount);
+            _burn(holder, id, units);
+            SafeERC20.safeTransferFrom(usdt, seller, holder, amount);
+        }
+        if (unsold != 0) _burn(seller, id, unsold);
     }
 
-    /// @notice Burns the caller's units and pays 1 USDT per unit. Sellers claim unsold units here.
-    /// @dev Needs no role, so a holder keeps the right to be paid after a role is revoked.
-    function claim(uint256 id) external nonReentrant {
-        Receivable storage r = _get(id);
-        if (r.status != Status.Settled) revert InvalidStatus(r.status);
-        uint256 units = balanceOf(msg.sender, id);
-        if (units == 0) revert NothingToClaim();
-
-        uint256 amount = units * UNIT;
-        emit Claimed(id, msg.sender, units, amount);
-        _burn(msg.sender, id, units);
-        SafeERC20.safeTransfer(usdt, msg.sender, amount);
-    }
-
-    /// @notice Records a default once the grace period has passed. Defaulted is final.
+    /// @notice Records a default once the due date has passed without settlement. Defaulted is final.
     function markDefault(uint256 id) external {
         Receivable storage r = _get(id);
         _requireOpenForPayment(r);
-        if (block.timestamp <= uint256(r.dueDate) + gracePeriod) revert GraceNotOver();
+        if (block.timestamp < r.dueDate) revert NotDue();
 
         r.status = Status.Defaulted;
         emit ReceivableDefaulted(id);
+    }
+
+    /// @notice Everyone except the seller who currently holds units of a receivable.
+    function holdersOf(uint256 id) external view returns (address[] memory) {
+        return _holders[id].values();
     }
 
     /// @notice Returns a receivable. Reverts if the id doesn't exist.
@@ -300,6 +302,14 @@ contract Upfront is ERC1155Supply, ReentrancyGuard {
             }
         }
         super._update(from, to, ids, values);
+
+        for (uint256 i = 0; i < ids.length; ++i) {
+            uint256 id = ids[i];
+            if (from != address(0) && balanceOf(from, id) == 0) _holders[id].remove(from);
+            if (to != address(0) && to != _receivables[id].seller && balanceOf(to, id) != 0) {
+                _holders[id].add(to);
+            }
+        }
     }
 
     /// @dev Ends a receivable that sold nothing: burns its units and frees the document for reuse.
