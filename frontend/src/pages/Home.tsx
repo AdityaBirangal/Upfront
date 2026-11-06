@@ -1,14 +1,15 @@
 import { ArrowRight, ArrowUpRight } from 'lucide-react'
-import { Link } from 'react-router'
+import { useEffect } from 'react'
+import { useLocation } from 'react-router'
 import { Button } from '@/components/ui/button'
 import SiteFooter from '@/components/layout/SiteFooter.tsx'
-import { Logo } from '@/components/layout/SideNav.tsx'
-import ThemeToggle from '@/components/ThemeToggle.tsx'
 import Compare from '@/components/landing/Compare.tsx'
 import DealCalculator from '@/components/landing/DealCalculator.tsx'
 import FlowAnimation from '@/components/landing/FlowAnimation.tsx'
 import Guilloche from '@/components/landing/Guilloche.tsx'
 import HeroBackdrop from '@/components/landing/HeroBackdrop.tsx'
+import HowWeEarn from '@/components/landing/HowWeEarn.tsx'
+import LandingHeader, { OpenApp } from '@/components/landing/LandingHeader.tsx'
 import LiveStats from '@/components/landing/LiveStats.tsx'
 import ReceivableNote from '@/components/landing/ReceivableNote.tsx'
 import Rules from '@/components/landing/Rules.tsx'
@@ -19,13 +20,6 @@ import { cn } from '@/lib/utils'
 
 /** The demo run's settlement: one transaction paying both investors. */
 const SETTLEMENT_TX = explorerTxUrl('0x54ec787e22d5c058def448bec01c57bfe7ccb9c50362ae54b8a94c6b079ca5b0')
-
-const NAV = [
-  { href: '#how', label: 'How it works' },
-  { href: '#returns', label: 'Returns' },
-  { href: '#rules', label: 'Rules' },
-  { href: '#live', label: 'Live data' },
-]
 
 const FACTS: { value: string; label: string }[] = [
   { value: 'Minutes', label: 'to USDT once units sell' },
@@ -49,54 +43,18 @@ const STEPS: { role: Role; title: string; body: string }[] = [
   { role: 'Seller', title: 'Settle', body: 'Before the due date, one transaction pays 1 USDT per unit to every holder.' },
 ]
 
-function OpenApp({ className }: { className?: string }) {
-  return (
-    <Button size="lg" asChild className={cn('h-11 px-5 text-[0.9375rem]', className)}>
-      <Link to="/app">
-        Open the app
-        <ArrowRight aria-hidden />
-      </Link>
-    </Button>
-  )
-}
-
-function Header() {
-  return (
-    <header className="bg-background/80 supports-[backdrop-filter]:bg-background/70 sticky top-0 z-30 border-b border-border/70 backdrop-blur-lg">
-      <div className={`${WRAP} flex h-16 items-center gap-8`}>
-        <Link to="/" className="rounded-md outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50" aria-label="Upfront home">
-          <Logo />
-        </Link>
-        <nav aria-label="Sections" className="hidden items-center gap-1 md:flex">
-          {NAV.map((n) => (
-            <a
-              key={n.href}
-              href={n.href}
-              className="text-muted-foreground hover:text-foreground rounded-md px-3 py-2 text-sm transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-            >
-              {n.label}
-            </a>
-          ))}
-        </nav>
-        <div className="ml-auto flex items-center gap-2">
-          <ThemeToggle />
-          <Button size="sm" asChild>
-            <Link to="/app">
-              Open the app
-              <ArrowRight aria-hidden />
-            </Link>
-          </Button>
-        </div>
-      </div>
-    </header>
-  )
-}
-
 function Home() {
   const { resolved } = useTheme()
+  const { hash } = useLocation()
+
+  // Arriving from another page with a section hash: scroll once the section has rendered.
+  useEffect(() => {
+    if (hash) document.getElementById(hash.slice(1))?.scrollIntoView()
+  }, [hash])
+
   return (
     <div className="flex min-h-svh flex-col">
-      <Header />
+      <LandingHeader />
 
       <main className="flex-1">
         {/*
@@ -207,6 +165,19 @@ function Home() {
             lede="Every unit repays exactly 1 USDT at the due date. The discount is the investor’s return, fixed the moment they buy."
           />
           <DealCalculator className="mt-12" />
+        </section>
+
+        {/* Business model. */}
+        <section id="earn" aria-labelledby="earn-title" className="scroll-mt-16 border-t">
+          <div className={`${WRAP} py-24 md:py-32`}>
+            <SectionHead
+              id="earn-title"
+              eyebrow="Business model"
+              title="How Upfront earns"
+              lede="A small fee on the money a seller raises. Investors don’t pay anything on top of the price of a unit."
+            />
+            <HowWeEarn className="mt-12" />
+          </div>
         </section>
 
         {/* Guarantees. */}

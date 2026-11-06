@@ -3,6 +3,7 @@ import RequireRole from './components/RequireRole.tsx'
 import AppShell from './components/layout/AppShell.tsx'
 import AdminRoles from './pages/AdminRoles.tsx'
 import Buyer from './pages/Buyer.tsx'
+import FutureScope from './pages/FutureScope.tsx'
 import Home from './pages/Home.tsx'
 import Invest from './pages/Invest.tsx'
 import Overview from './pages/Overview.tsx'
@@ -13,6 +14,7 @@ function App() {
   return (
     <Routes>
       <Route path="/" element={<Home />} />
+      <Route path="/future" element={<FutureScope />} />
       <Route path="/app" element={<AppShell />}>
         <Route index element={<Overview />} />
         {/* Anyone can view roles. Only admin wallets can change them. */}
