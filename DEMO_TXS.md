@@ -22,6 +22,17 @@ transaction exists for it. Settlement then paid whoever held the units.
 | Approve | Seller | 10 USDT allowance | [`0xaa423bec…`](https://explorer.testnet.whitechain.io/tx/0xaa423bec98c3423a03687eed17bced85c36b929db25ad828ad2dfd3863b5a2ed) |
 | **Settle** | Seller | **One transaction pays 4 USDT to Investor 1 and 6 USDT to Investor 2, the new holder of 2 units** | [`0x43cbea02…`](https://explorer.testnet.whitechain.io/tx/0x43cbea02dd197d9293a21e2b5e677a84eac77a141ea746a6e47776e1c728f072) |
 
+## World ID join
+
+World ID's simulator on [`InvestorGate`](https://explorer.testnet.whitechain.io/address/0x5d008711c2301AE2C1cC45c4667971db02AD5292),
+so these are staging proofs, not real humans. No Admin was involved in the join.
+
+| Step | Wallet | Result | Transaction |
+|---|---|---|---|
+| Gate deployed | Admin | `InvestorGate` created and made an admin of `UpfrontAccess` | [`0x52893918…`](https://explorer.testnet.whitechain.io/tx/0x5289391812c81d94901ae1464b429caf7242ef7add7327a3c1fde9bd21605945) and [`0x401a614d…`](https://explorer.testnet.whitechain.io/tx/0x401a614d03d67175556863558d1d90676d455b9dc9a3a1a862c3939a415235f1) |
+| **Join** | Test A | **Verified with World ID, and the wallet got the Investor role** | [`0x286dcc34…`](https://explorer.testnet.whitechain.io/tx/0x286dcc344221760786ecba4769e544601fee56f49c9b6de6b709f6b40b813a35) |
+| Refused | Test B, same human | Refused before sending, so no transaction exists | None |
+
 ## Earlier run at a 3% discount
 
 The same flow on the same deployment, before we moved the example deal to 10%.

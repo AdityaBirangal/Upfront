@@ -1,6 +1,6 @@
 import { erc20Abi, keccak256, toBytes, zeroHash } from 'viem'
 import type { Address, Hex } from 'viem'
-import { upfrontAbi, upfrontAccessAbi } from './generated/abis.ts'
+import { investorGateAbi, upfrontAbi, upfrontAccessAbi } from './generated/abis.ts'
 import { deployments } from './generated/deployments.ts'
 import type { Role } from './roles.ts'
 import { targetChain } from './wagmi.ts'
@@ -8,6 +8,7 @@ import { targetChain } from './wagmi.ts'
 type DeploymentVersion = {
   upfront?: Address
   access?: Address
+  gate?: Address
   deployBlock?: number
 }
 type ChainDeployments = {
@@ -46,6 +47,11 @@ export const access = {
   abi: upfrontAccessAbi,
   chainId: targetChain.id,
 } as const
+
+/** Not on every chain. Where it's missing, investors can only be added by an Admin. */
+export const gate = latest.gate
+  ? ({ address: latest.gate, abi: investorGateAbi, chainId: targetChain.id } as const)
+  : undefined
 
 export const usdt = {
   address: chainDeployments.usdt,
