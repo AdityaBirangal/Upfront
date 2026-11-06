@@ -110,7 +110,7 @@ function DealRow({ r }: { r: Receivable }) {
       <Link
         to={`/app/receivable/${r.id}`}
         className={cn(
-          'group hover:bg-muted/50 grid grid-cols-[1fr_auto] items-center gap-x-6 gap-y-3 px-6 py-4 transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:ring-inset md:px-8',
+          'group hover:bg-muted/50 grid grid-cols-[1fr_auto] items-center gap-x-6 gap-y-2 px-6 py-2.5 transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:ring-inset md:px-8',
           COLS,
         )}
       >
@@ -131,7 +131,7 @@ function DealRow({ r }: { r: Receivable }) {
         <span className="text-muted-foreground tabular hidden text-right text-sm sm:block">{bpsToPct(Number(r.discountBps))}</span>
         <span className="tabular hidden text-right text-sm sm:block">{toNumber(r.unitsSold * r.unitPrice).toFixed(2)}</span>
         <span className="flex justify-end">
-          <StatusBadge status={r.status} />
+          <StatusBadge status={r.status} className="h-5 gap-1 px-2 text-[0.6875rem]" />
         </span>
       </Link>
     </li>
@@ -217,7 +217,7 @@ function LiveStats() {
             <div className="border-t">
               <div
                 className={cn(
-                  'text-muted-foreground hidden gap-x-6 px-6 py-3 font-mono text-[0.6875rem] tracking-[0.12em] uppercase sm:grid md:px-8',
+                  'text-muted-foreground hidden gap-x-6 px-6 py-2 font-mono text-[0.6875rem] tracking-[0.12em] uppercase sm:grid md:px-8',
                   COLS,
                 )}
               >
