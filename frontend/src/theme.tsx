@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { flushSync } from 'react-dom'
 import type { ReactNode } from 'react'
 
 import { ThemeContext } from '@/lib/theme.ts'
@@ -6,46 +7,44 @@ import type { Theme } from '@/lib/theme.ts'
 
 const STORAGE_KEY = 'upfront-theme'
 
+/** The saved choice, or light when nothing is saved. */
 function storedTheme(): Theme {
   try {
-    const value = localStorage.getItem(STORAGE_KEY)
-    return value === 'light' || value === 'dark' ? value : 'system'
+    return localStorage.getItem(STORAGE_KEY) === 'dark' ? 'dark' : 'light'
   } catch {
-    return 'system'
+    return 'light'
   }
 }
 
-const systemDark = () => window.matchMedia('(prefers-color-scheme: dark)').matches
-
-/** Light, dark, or the system setting. Kept per browser, applied as `.dark` on <html>. */
+/** Light or dark, light by default. Kept per browser, applied as `.dark` on <html>. */
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(storedTheme)
-  const [prefersDark, setPrefersDark] = useState(systemDark)
 
   useEffect(() => {
-    const query = window.matchMedia('(prefers-color-scheme: dark)')
-    const update = () => setPrefersDark(query.matches)
-    query.addEventListener('change', update)
-    return () => query.removeEventListener('change', update)
-  }, [])
-
-  const resolved = theme === 'system' ? (prefersDark ? 'dark' : 'light') : theme
-
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', resolved === 'dark')
-  }, [resolved])
+    document.documentElement.classList.toggle('dark', theme === 'dark')
+  }, [theme])
 
   function setTheme(next: Theme) {
-    setThemeState(next)
+    const apply = () => {
+      // Synchronous, so the transition's "after" snapshot already has the new theme.
+      flushSync(() => setThemeState(next))
+      document.documentElement.classList.toggle('dark', next === 'dark')
+    }
+    // A slow crossfade of the whole page, so the hero footage morphs from day to night.
+    // Browsers without view transitions, or with reduced motion, switch at once.
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (next !== theme && !reduced && document.startViewTransition) document.startViewTransition(apply)
+    else apply()
     try {
-      if (next === 'system') localStorage.removeItem(STORAGE_KEY)
-      else localStorage.setItem(STORAGE_KEY, next)
+      localStorage.setItem(STORAGE_KEY, next)
     } catch {
       // Storage can be blocked. The choice still applies for this visit.
     }
   }
 
+  const toggleTheme = () => setTheme(theme === 'dark' ? 'light' : 'dark')
+
   return (
-    <ThemeContext value={{ theme, resolved, setTheme }}>{children}</ThemeContext>
+    <ThemeContext value={{ theme, resolved: theme, setTheme, toggleTheme }}>{children}</ThemeContext>
   )
 }

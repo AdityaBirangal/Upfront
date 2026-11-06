@@ -1,7 +1,9 @@
-import { ArrowRight, ArrowUpRight } from 'lucide-react'
+import { ArrowRight, ArrowUpRight, EyeOff, ScanFace, ShieldCheck } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { useEffect } from 'react'
-import { useLocation } from 'react-router'
+import { Link, useLocation } from 'react-router'
 import { Button } from '@/components/ui/button'
+import WorldLogo from '@/components/WorldLogo.tsx'
 import SiteFooter from '@/components/layout/SiteFooter.tsx'
 import Compare from '@/components/landing/Compare.tsx'
 import DealCalculator from '@/components/landing/DealCalculator.tsx'
@@ -10,12 +12,12 @@ import Guilloche from '@/components/landing/Guilloche.tsx'
 import HeroBackdrop from '@/components/landing/HeroBackdrop.tsx'
 import HowWeEarn from '@/components/landing/HowWeEarn.tsx'
 import LandingHeader, { OpenApp } from '@/components/landing/LandingHeader.tsx'
+import PassportCredential from '@/components/landing/PassportCredential.tsx'
 import LiveStats from '@/components/landing/LiveStats.tsx'
 import ReceivableNote from '@/components/landing/ReceivableNote.tsx'
 import Rules from '@/components/landing/Rules.tsx'
 import { Eyebrow, LiveDot, SectionHead, WRAP } from '@/components/landing/kit.tsx'
 import { explorerTxUrl } from '@/contracts.ts'
-import { useTheme } from '@/lib/theme.ts'
 import { cn } from '@/lib/utils'
 
 /** The demo run's settlement: one transaction paying both investors. */
@@ -26,6 +28,19 @@ const FACTS: { value: string; label: string }[] = [
   { value: '1 tx', label: 'pays every unit holder' },
   { value: '24/7', label: 'no bank hours or cut-offs' },
   { value: '0', label: 'admin access to funds' },
+]
+
+const ONBOARDING: { icon: LucideIcon; title: string; body: string }[] = [
+  {
+    icon: ScanFace,
+    title: 'One human, one investor wallet',
+    body: 'World ID proves the investor is a real, unique person. The InvestorGate contract checks the proof and grants the role, so one person can’t open many wallets.',
+  },
+  {
+    icon: EyeOff,
+    title: 'Nothing else is shared',
+    body: 'No name, no documents, no data stored by Upfront. Only the proof reaches the chain.',
+  },
 ]
 
 type Role = 'Seller' | 'Client' | 'Investors'
@@ -39,12 +54,19 @@ const STEPS: { role: Role; title: string; body: string }[] = [
   { role: 'Seller', title: 'Upload the agreement', body: 'The PDF stays offchain. Its SHA-256 hash goes onchain.' },
   { role: 'Client', title: 'Verify it', body: 'The client checks the agreement and confirms it from its own wallet.' },
   { role: 'Seller', title: 'List units', body: 'Units of the repayment go on sale at a discount, say 0.90 USDT each.' },
-  { role: 'Investors', title: 'Buy units', body: 'USDT reaches the seller and units reach the investor in one transaction.' },
-  { role: 'Seller', title: 'Settle', body: 'Before the due date, one transaction pays 1 USDT per unit to every holder.' },
+  {
+    role: 'Investors',
+    title: 'Buy units',
+    body: 'USDT reaches the seller and units reach the investor in one transaction.',
+  },
+  {
+    role: 'Seller',
+    title: 'Settle',
+    body: 'Before the due date, one transaction pays 1 USDT per unit to every holder.',
+  },
 ]
 
 function Home() {
-  const { resolved } = useTheme()
   const { hash } = useLocation()
 
   // Arriving from another page with a section hash: scroll once the section has rendered.
@@ -58,10 +80,10 @@ function Home() {
 
       <main className="flex-1">
         {/*
-          Hero: the site the money builds. Always dark, so the night footage reads in both themes.
+          Hero: the site the money builds, by day in light mode and at blue hour in dark mode.
           The thesis on the left and the receivable on the right, with the footage behind both.
         */}
-        <section className="dark bg-background text-foreground relative">
+        <section className="bg-background text-foreground relative">
           <HeroBackdrop />
           <div
             className={`${WRAP} relative grid items-center gap-14 pt-14 pb-20 md:pt-20 lg:grid-cols-[minmax(0,1fr)_minmax(0,29rem)] lg:gap-16 lg:pt-24 lg:pb-32`}
@@ -77,13 +99,12 @@ function Home() {
                 <span className="text-foreground">See the numbers</span>
                 <ArrowRight className="size-3" aria-hidden />
               </a>
-              <h1 className="text-[2.75rem] leading-[1.02] font-semibold tracking-[-0.045em] text-balance sm:text-6xl lg:text-[4.25rem]">
+              <h1 className="text-[2.75rem] leading-[1.02] font-semibold tracking-[-0.045em] text-balance [text-shadow:0_0_24px_var(--background),0_0_8px_var(--background)] sm:text-6xl lg:text-[4.25rem]">
                 Big contracts shouldn’t wait <span className="text-muted-foreground">for big banks.</span>
               </h1>
-              <p className="text-muted-foreground max-w-xl text-lg leading-relaxed text-pretty">
-                Upfront turns a signed project agreement into funding. Sell units of the repayment to approved
-                investors at a discount, and get USDT today. When the seller settles, one transaction pays
-                every holder.
+              <p className="text-foreground/80 max-w-xl text-lg leading-relaxed text-pretty [text-shadow:0_0_14px_var(--background),0_0_6px_var(--background),0_0_2px_var(--background)]">
+                Upfront turns a signed project agreement into funding. Sell units of the repayment to approved investors
+                at a discount, and get USDT today. When the seller settles, one transaction pays every holder.
               </p>
               <div className="flex flex-wrap gap-3">
                 <OpenApp />
@@ -92,8 +113,7 @@ function Home() {
                 </Button>
               </div>
             </div>
-            {/* The hero is always dark; the card follows the page theme, so it's white in light mode. */}
-            <ReceivableNote className={resolved === 'light' ? 'light' : undefined} />
+            <ReceivableNote />
           </div>
         </section>
 
@@ -126,21 +146,24 @@ function Home() {
           </div>
         </section>
 
-        {/* How it works. */}
+        {/* How we fix it: the answer to the problem above. */}
         <section id="how" aria-labelledby="how-title" className="bg-muted/40 scroll-mt-16 border-y">
           <div className={`${WRAP} py-24 md:py-32`}>
             <SectionHead
               id="how-title"
-              eyebrow="How it works"
-              title="From signed agreement to USDT, in five steps"
-              lede="Each step is a transaction on Whitechain, signed from the wallet of the party it belongs to."
+              eyebrow="How we fix it"
+              title="The signed contract raises the money. No bank, no collateral."
+              lede="The builder sells units of what the client will pay, gets USDT within minutes of a sale, and anyone approved can invest. Five steps, each a transaction on Whitechain signed from the wallet of the party it belongs to."
             />
             <div className="bg-card mt-12 rounded-2xl border p-4 shadow-xs md:p-8">
               <FlowAnimation />
             </div>
             <ol className="mt-12 grid gap-x-6 gap-y-8 lg:grid-cols-5">
               {STEPS.map((s, i) => (
-                <li key={s.title} className="grid grid-cols-[2.5rem_minmax(0,1fr)] gap-x-3 border-t pt-5 lg:flex lg:flex-col lg:gap-3">
+                <li
+                  key={s.title}
+                  className="grid grid-cols-[2.5rem_minmax(0,1fr)] gap-x-3 border-t pt-5 lg:flex lg:flex-col lg:gap-3"
+                >
                   <span className="text-muted-foreground tabular font-mono text-xs leading-6">0{i + 1}</span>
                   <div className="flex flex-col gap-2">
                     <span className="text-muted-foreground inline-flex items-center gap-1.5 text-xs font-medium">
@@ -154,6 +177,74 @@ function Home() {
               ))}
             </ol>
           </div>
+        </section>
+
+        {/* Investor onboarding. */}
+        <section id="onboard" aria-labelledby="onboard-title" className={`${WRAP} scroll-mt-16 py-24 md:py-32`}>
+          <SectionHead
+            id="onboard-title"
+            eyebrow={
+              <span className="inline-flex items-center gap-2">
+                <WorldLogo className="size-4" />
+                Investor onboarding with World ID
+              </span>
+            }
+            title="Investors onboard themselves with World ID"
+            lede="No forms, no documents, no waiting on an admin. An investor proves with World ID that they’re one unique human, and the contract gives their wallet the Investor role on the spot."
+          />
+
+          {/* OFAC screening: the headline. */}
+          <div className="bg-band text-band-foreground relative mt-12 overflow-hidden rounded-3xl px-6 py-10 md:px-12 md:py-14">
+            <Guilloche className="pointer-events-none absolute -top-40 -right-40 size-[32rem] opacity-[0.12]" />
+            <div className="relative grid items-center gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] lg:gap-14">
+              <div className="flex flex-col items-start gap-5">
+                <div className="flex flex-wrap items-center gap-3">
+                  <WorldLogo wordmark className="h-7 w-auto" />
+                  <span className="bg-band-foreground/15 rounded-full px-2.5 py-1 text-xs font-medium">Next</span>
+                </div>
+                <h3 className="flex items-start gap-3 text-3xl leading-[1.08] font-semibold tracking-[-0.035em] text-balance md:text-5xl">
+                  <ShieldCheck className="mt-1 size-8 shrink-0 md:size-11" aria-hidden />
+                  OFAC sanctions screening
+                </h3>
+                <p className="text-band-foreground/80 text-lg leading-relaxed text-pretty md:text-xl">
+                  An investor presents a passport credential through World ID. If it isn’t from an OFAC-sanctioned
+                  country, their wallet joins as an investor, and Upfront never sees the passport.
+                </p>
+                <p className="border-band-foreground/30 text-band-foreground/70 border-l-2 pl-4 text-sm leading-relaxed text-pretty md:text-base">
+                  For regulated deals, we intend to add World ID’s nationality check as one input to sanctions screening.
+                  It’s in preview today, so we didn’t build it.
+                </p>
+                <Link
+                  to="/future#kyc"
+                  className="text-band-foreground inline-flex items-center gap-1.5 font-medium underline-offset-4 hover:underline"
+                >
+                  See the plan
+                  <ArrowRight className="size-4" aria-hidden />
+                </Link>
+              </div>
+              <PassportCredential />
+            </div>
+          </div>
+
+          {/* Live today. */}
+          <ul className="mt-4 grid gap-4 md:grid-cols-2">
+            {ONBOARDING.map(({ icon: Icon, title, body }) => (
+              <li key={title} className="bg-card flex gap-4 rounded-2xl border p-5 shadow-xs md:p-6">
+                <span className="bg-primary/10 text-primary flex size-10 shrink-0 items-center justify-center rounded-full">
+                  <Icon className="size-5" aria-hidden />
+                </span>
+                <div className="flex flex-col gap-1">
+                  <h3 className="flex flex-wrap items-center gap-2 font-semibold tracking-[-0.01em]">
+                    {title}
+                    <span className="bg-state-settled/15 text-state-settled rounded-full px-2 py-0.5 text-[0.6875rem] font-medium">
+                      Live
+                    </span>
+                  </h3>
+                  <p className="text-muted-foreground text-sm leading-relaxed">{body}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
         </section>
 
         {/* The economics. */}
@@ -177,6 +268,12 @@ function Home() {
               lede="A small fee on the money a seller raises. Investors don’t pay anything on top of the price of a unit."
             />
             <HowWeEarn className="mt-12" />
+            <Button variant="outline" asChild className="mt-10">
+              <Link to="/business">
+                See the full business model
+                <ArrowRight aria-hidden />
+              </Link>
+            </Button>
           </div>
         </section>
 
@@ -208,8 +305,8 @@ function Home() {
                 Run a deal end to end on Whitechain Sepolia.
               </h2>
               <p className="text-band-foreground/80 max-w-lg text-lg leading-relaxed">
-                Connect a wallet and take a receivable from upload to settlement with test USDT. Every transaction
-                links to the explorer.
+                Connect a wallet and take a receivable from upload to settlement with test USDT. Every transaction links
+                to the explorer.
               </p>
               <div className="flex flex-wrap gap-3 pt-2">
                 <OpenApp className="bg-band-foreground text-band hover:bg-band-foreground/90" />

@@ -4,13 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Upfront</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="description" content="Sell receivables onchain, and invest in them at a discount." />
     <script>
-      // Apply the saved theme before the first paint, so dark mode doesn't flash light.
+      // Apply a saved dark theme before the first paint, so it doesn't flash light. Light is the default.
       try {
-        const saved = localStorage.getItem('upfront-theme')
-        const dark = saved ? saved === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches
-        if (dark) document.documentElement.classList.add('dark')
+        if (localStorage.getItem('upfront-theme') === 'dark') document.documentElement.classList.add('dark')
       } catch {}
     </script>
   </head>
