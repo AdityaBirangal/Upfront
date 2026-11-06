@@ -2,6 +2,7 @@ import { Route, Routes } from 'react-router'
 import RequireRole from './components/RequireRole.tsx'
 import AppShell from './components/layout/AppShell.tsx'
 import AdminRoles from './pages/AdminRoles.tsx'
+import Business from './pages/Business.tsx'
 import Buyer from './pages/Buyer.tsx'
 import FutureScope from './pages/FutureScope.tsx'
 import Home from './pages/Home.tsx'
@@ -14,6 +15,7 @@ function App() {
   return (
     <Routes>
       <Route path="/" element={<Home />} />
+      <Route path="/business" element={<Business />} />
       <Route path="/future" element={<FutureScope />} />
       <Route path="/app" element={<AppShell />}>
         <Route index element={<Overview />} />

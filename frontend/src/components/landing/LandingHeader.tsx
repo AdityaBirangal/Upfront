@@ -10,7 +10,6 @@ import { cn } from '@/lib/utils'
 const SECTIONS = [
   { href: '/#how', label: 'How it works' },
   { href: '/#returns', label: 'Returns' },
-  { href: '/#earn', label: 'How we earn' },
   { href: '/#rules', label: 'Rules' },
   { href: '/#live', label: 'Live data' },
 ]
@@ -43,6 +42,9 @@ function LandingHeader() {
               {n.label}
             </a>
           ))}
+          <NavLink to="/business" className={({ isActive }) => cn(LINK, isActive && 'text-foreground')}>
+            Business model
+          </NavLink>
           <NavLink to="/future" className={({ isActive }) => cn(LINK, isActive && 'text-foreground')}>
             Future scope
           </NavLink>

@@ -1,6 +1,6 @@
 import { ArrowRight, ArrowUpRight } from 'lucide-react'
 import { useEffect } from 'react'
-import { useLocation } from 'react-router'
+import { Link, useLocation } from 'react-router'
 import { Button } from '@/components/ui/button'
 import SiteFooter from '@/components/layout/SiteFooter.tsx'
 import Compare from '@/components/landing/Compare.tsx'
@@ -177,6 +177,12 @@ function Home() {
               lede="A small fee on the money a seller raises. Investors don’t pay anything on top of the price of a unit."
             />
             <HowWeEarn className="mt-12" />
+            <Button variant="outline" asChild className="mt-10">
+              <Link to="/business">
+                See the full business model
+                <ArrowRight aria-hidden />
+              </Link>
+            </Button>
           </div>
         </section>
 
