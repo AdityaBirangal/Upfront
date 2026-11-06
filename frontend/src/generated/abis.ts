@@ -376,6 +376,11 @@ export const upfrontAbi = [
         "name": "uri_",
         "type": "string",
         "internalType": "string"
+      },
+      {
+        "name": "gracePeriod_",
+        "type": "uint64",
+        "internalType": "uint64"
       }
     ],
     "stateMutability": "nonpayable"
@@ -470,6 +475,19 @@ export const upfrontAbi = [
   {
     "type": "function",
     "name": "cancelReceivable",
+    "inputs": [
+      {
+        "name": "id",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "claim",
     "inputs": [
       {
         "name": "id",
@@ -631,6 +649,19 @@ export const upfrontAbi = [
   },
   {
     "type": "function",
+    "name": "gracePeriod",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "invest",
     "inputs": [
       {
@@ -687,6 +718,19 @@ export const upfrontAbi = [
       },
       {
         "name": "maxUnitsPerInvestor",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "markDefault",
+    "inputs": [
+      {
+        "name": "id",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -825,6 +869,19 @@ export const upfrontAbi = [
   },
   {
     "type": "function",
+    "name": "settle",
+    "inputs": [
+      {
+        "name": "id",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "supportsInterface",
     "inputs": [
       {
@@ -946,6 +1003,37 @@ export const upfrontAbi = [
   },
   {
     "type": "event",
+    "name": "Claimed",
+    "inputs": [
+      {
+        "name": "id",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "holder",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "units",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "Invested",
     "inputs": [
       {
@@ -1039,6 +1127,19 @@ export const upfrontAbi = [
   },
   {
     "type": "event",
+    "name": "ReceivableDefaulted",
+    "inputs": [
+      {
+        "name": "id",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "ReceivableFunded",
     "inputs": [
       {
@@ -1109,6 +1210,31 @@ export const upfrontAbi = [
         "type": "address",
         "indexed": true,
         "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "Settled",
+    "inputs": [
+      {
+        "name": "id",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "payer",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
       }
     ],
     "anonymous": false
@@ -1345,6 +1471,11 @@ export const upfrontAbi = [
   },
   {
     "type": "error",
+    "name": "GraceNotOver",
+    "inputs": []
+  },
+  {
+    "type": "error",
     "name": "InvalidCap",
     "inputs": []
   },
@@ -1397,7 +1528,17 @@ export const upfrontAbi = [
   },
   {
     "type": "error",
+    "name": "NotDue",
+    "inputs": []
+  },
+  {
+    "type": "error",
     "name": "NotSeller",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NothingToClaim",
     "inputs": []
   },
   {

@@ -29,7 +29,7 @@ contract LifecycleForkTest is Test {
         vm.createSelectFork("whitechain_sepolia");
 
         access = new UpfrontAccess(admin);
-        upfront = new Upfront(access, IERC20Metadata(address(USDT)), "");
+        upfront = new Upfront(access, IERC20Metadata(address(USDT)), "", 120);
 
         vm.startPrank(admin);
         access.grantRole(access.SELLER_ROLE(), seller);
@@ -41,6 +41,7 @@ contract LifecycleForkTest is Test {
         vm.startPrank(USDT_HOLDER);
         USDT.safeTransfer(investor, 6e6);
         USDT.safeTransfer(investor2, 4e6);
+        USDT.safeTransfer(buyer, 10e6);
         vm.stopPrank();
 
         vm.startPrank(seller);
@@ -71,6 +72,51 @@ contract LifecycleForkTest is Test {
         assertEq(upfront.balanceOf(investor, id), 6);
         assertEq(upfront.balanceOf(investor2, id), 4);
         assertEq(uint8(upfront.getReceivable(id).status), uint8(Status.Funded));
+    }
+
+    function test_FullLifecycleWithRealUsdt() public {
+        _approveAndInvest(investor, 6);
+        _approveAndInvest(investor2, 4);
+
+        vm.prank(buyer);
+        upfront.verifyReceivable(id);
+
+        vm.warp(upfront.getReceivable(id).dueDate);
+        vm.startPrank(buyer);
+        USDT.safeIncreaseAllowance(address(upfront), 10e6);
+        vm.stopPrank();
+
+        // A verified receivable can be settled by anyone.
+        upfront.settle(id);
+        assertEq(USDT.balanceOf(buyer), 0);
+        assertEq(USDT.balanceOf(address(upfront)), 10e6);
+
+        vm.prank(investor);
+        upfront.claim(id);
+        vm.prank(investor2);
+        upfront.claim(id);
+
+        assertEq(USDT.balanceOf(investor), 6_180_000);
+        assertEq(USDT.balanceOf(investor2), 4_120_000);
+        assertEq(USDT.balanceOf(address(upfront)), 0);
+        assertEq(upfront.totalSupply(id), 0);
+        assertEq(uint8(upfront.getReceivable(id).status), uint8(Status.Settled));
+    }
+
+    function test_DefaultPathWithRealUsdt() public {
+        _approveAndInvest(investor, 6);
+
+        Receivable memory r = upfront.getReceivable(id);
+        vm.warp(uint256(r.dueDate) + 121);
+        upfront.markDefault(id);
+
+        assertEq(uint8(upfront.getReceivable(id).status), uint8(Status.Defaulted));
+        assertEq(USDT.balanceOf(buyer), 10e6);
+        assertEq(upfront.balanceOf(investor, id), 6);
+
+        vm.expectRevert();
+        vm.prank(investor);
+        upfront.claim(id);
     }
 
     function test_FailedInvestMovesNoRealUsdt() public {
