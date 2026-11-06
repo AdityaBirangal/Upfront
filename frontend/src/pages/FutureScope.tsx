@@ -1,5 +1,7 @@
 import { BadgeCheck, Coins, ShieldCheck } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import { useEffect } from 'react'
+import { useLocation } from 'react-router'
 import SiteFooter from '@/components/layout/SiteFooter.tsx'
 import Guilloche from '@/components/landing/Guilloche.tsx'
 import LandingHeader from '@/components/landing/LandingHeader.tsx'
@@ -29,14 +31,21 @@ const PLANS: { id: string; icon: LucideIcon; eyebrow: string; title: string; led
     id: 'kyc',
     icon: BadgeCheck,
     eyebrow: '03 · KYC / KYB',
-    title: 'Investors onboard themselves with World ID',
-    lede: 'An investor presents a passport credential through World ID. If it isn’t from an OFAC-sanctioned country, their wallet gets the Investor role on its own, and Upfront never sees the passport. Anyone who can’t pass that check can still be approved by an admin, and sellers and clients stay with business checks run by the admin.',
-    stat: 'Self-onboarding',
-    statLabel: 'for investors, with admin approval as the fallback',
+    title: 'Full sanctions screening with World ID',
+    lede: 'Investors already onboard themselves by proving with World ID that they’re one unique human. Next, the same flow checks a passport credential through World ID’s selective disclosure, now in preview: if it isn’t from an OFAC-sanctioned country, the wallet gets the Investor role, and Upfront never sees the passport. Anyone who can’t pass can still be approved by an admin, and sellers and clients stay with business checks run by the admin.',
+    stat: 'OFAC check',
+    statLabel: 'added to World ID self-onboarding, admin approval as the fallback',
   },
 ]
 
 function FutureScope() {
+  const { hash } = useLocation()
+
+  // Arriving with a section hash, such as /future#kyc: scroll once the section has rendered.
+  useEffect(() => {
+    if (hash) document.getElementById(hash.slice(1))?.scrollIntoView()
+  }, [hash])
+
   return (
     <div className="flex min-h-svh flex-col">
       <LandingHeader />
