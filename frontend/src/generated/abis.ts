@@ -1547,6 +1547,17 @@ export const upfrontAbi = [
   },
   {
     "type": "error",
+    "name": "TransferNotAllowed",
+    "inputs": [
+      {
+        "name": "reason",
+        "type": "uint8",
+        "internalType": "enum TransferBlock"
+      }
+    ]
+  },
+  {
+    "type": "error",
     "name": "UnitsAlreadySold",
     "inputs": []
   },

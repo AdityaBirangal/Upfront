@@ -5,7 +5,7 @@ import {Test, console} from "forge-std/Test.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {Receivable, Status, Upfront} from "../src/Upfront.sol";
+import {Receivable, Status, TransferBlock, Upfront} from "../src/Upfront.sol";
 import {UpfrontAccess} from "../src/UpfrontAccess.sol";
 
 /// @notice Runs against the real USDT on a fork of Whitechain Sepolia. Nothing here is broadcast.
@@ -94,6 +94,29 @@ contract LifecycleForkTest is Test {
         assertEq(USDT.balanceOf(address(upfront)), 0);
         assertEq(upfront.totalSupply(id), 0);
         assertEq(uint8(upfront.getReceivable(id).status), uint8(Status.Settled));
+    }
+
+    function test_ResaleThenSettlePaysNewHolderWithRealUsdt() public {
+        _approveAndInvest(investor, 6);
+        _approveAndInvest(investor2, 4);
+
+        vm.prank(investor);
+        upfront.safeTransferFrom(investor, investor2, id, 2, "");
+
+        vm.expectRevert(abi.encodeWithSelector(Upfront.TransferNotAllowed.selector, TransferBlock.ReceiverNotInvestor));
+        vm.prank(investor);
+        upfront.safeTransferFrom(investor, makeAddr("outsider"), id, 1, "");
+
+        vm.prank(USDT_HOLDER);
+        USDT.safeTransfer(seller, 1e6);
+        vm.startPrank(seller);
+        USDT.safeIncreaseAllowance(address(upfront), 10e6);
+        upfront.settle(id);
+        vm.stopPrank();
+
+        assertEq(USDT.balanceOf(investor), 4_180_000);
+        assertEq(USDT.balanceOf(investor2), 6_120_000);
+        assertEq(USDT.balanceOf(address(upfront)), 0);
     }
 
     function test_FailedInvestMovesNoRealUsdt() public {
