@@ -4,6 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Upfront</title>
+    <meta name="description" content="Sell receivables onchain, and invest in them at a discount." />
+    <script>
+      // Apply the saved theme before the first paint, so dark mode doesn't flash light.
+      try {
+        const saved = localStorage.getItem('upfront-theme')
+        const dark = saved ? saved === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches
+        if (dark) document.documentElement.classList.add('dark')
+      } catch {}
+    </script>
   </head>
   <body>
     <div id="root"></div>
