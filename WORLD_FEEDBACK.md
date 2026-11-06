@@ -40,6 +40,10 @@ deployed, the Developer Portal setup, app wiring, and first join took 33 minutes
   repeats, so we didn't rely on it and enforce this in our contract.
 - **Cancellation:** the React page doesn't say how a user closing the widget is reported. We read the
   error codes from the types.
+- **Simulator identities:** the simulator offers many test identities, but in our tests with V4
+  `proofOfHuman`, switching identity gave the same nullifier on two different wallets. We lost time
+  suspecting our own code, and then added an Admin reset to our contract so the demo can run again. The docs
+  don't mention this, and it makes a "two different humans" test impossible in staging.
 - **Simulator with presets:** we couldn't find whether `proofOfHuman` works with the simulator, and the
   React example uses `orbLegacy`, so we had to try it.
 - **Developer Portal:** the guides don't describe the portal's screens or where to find `rp_id`.

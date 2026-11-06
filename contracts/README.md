@@ -32,7 +32,8 @@ forge script script/DeployLocal.s.sol --rpc-url http://127.0.0.1:8545 --broadcas
 Set `GRANT_ROLES=false` on that command to start with no roles, for testing the Admin page.
 
 Deploy `InvestorGate` beside the existing contracts, from an admin wallet. `GATE_SIGNER` is the address
-of the backend's `GATE_SIGNER_KEY`, which can't be changed afterwards:
+of the backend's `GATE_SIGNER_KEY`, which can't be changed afterwards. To replace a gate, also set
+`OLD_GATE`, and `REVOKE_WALLETS` as a comma-separated list of wallets it let in:
 
 ```bash
 ACCESS_ADDRESS=<UpfrontAccess> GATE_SIGNER=<address> \

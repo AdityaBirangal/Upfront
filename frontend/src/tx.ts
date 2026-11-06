@@ -45,6 +45,7 @@ const CONTRACT_ERRORS: Record<string, string> = {
   ZeroAddress: 'An address is missing.',
   NullifierAlreadyUsed: 'This person already has an investor wallet.',
   VoucherExpired: 'This verification has expired. Verify again.',
+  NotAdmin: 'Only an admin wallet can do that.',
   BadSignature: "This verification isn't valid for this wallet. Verify again.",
   AccessControlUnauthorizedAccount: 'Only an admin wallet can change roles.',
   AccessControlBadConfirmation: 'Only the wallet itself can renounce its role.',

@@ -10,6 +10,7 @@ import {MockUSDT} from "./mocks/MockUSDT.sol";
 
 contract InvestorGateTest is Test {
     event InvestorJoined(address indexed wallet, bytes32 indexed nullifierHash);
+    event GateReset(address indexed admin, uint256 round, uint256 walletsRevoked);
 
     // Written out here, not read from the contract, so these tests pin what the backend must sign.
     bytes32 constant DOMAIN_TYPEHASH =
@@ -241,6 +242,89 @@ contract InvestorGateTest is Test {
         vm.expectRevert(InvestorGate.BadSignature.selector);
         vm.prank(walletA);
         gate.join(NULLIFIER, expiry, signature);
+    }
+
+    function test_OnlyAnAdminCanReset() public {
+        _join(walletA, NULLIFIER);
+
+        vm.expectRevert(InvestorGate.NotAdmin.selector);
+        vm.prank(walletA);
+        gate.reset();
+
+        assertTrue(access.hasRole(access.INVESTOR_ROLE(), walletA));
+        assertEq(gate.round(), 0);
+    }
+
+    function test_ResetRevokesJoinedWalletsAndKeepsAdminInvestors() public {
+        bytes32 investorRole = access.INVESTOR_ROLE();
+        vm.prank(admin);
+        access.grantRole(investorRole, manualInvestor);
+        _join(walletA, NULLIFIER);
+        _join(walletB, OTHER_NULLIFIER);
+        assertEq(gate.joinedCount(), 2);
+
+        vm.expectEmit(address(gate));
+        emit GateReset(admin, 1, 2);
+        vm.prank(admin);
+        gate.reset();
+
+        assertFalse(access.hasRole(investorRole, walletA));
+        assertFalse(access.hasRole(investorRole, walletB));
+        assertTrue(access.hasRole(investorRole, manualInvestor));
+        assertEq(gate.joinedCount(), 0);
+        assertEq(gate.round(), 1);
+    }
+
+    function test_SameHumanCanJoinAgainAfterResetButOnlyOnce() public {
+        _join(walletA, NULLIFIER);
+        vm.prank(admin);
+        gate.reset();
+        assertFalse(gate.nullifierUsed(NULLIFIER));
+
+        _join(walletB, NULLIFIER);
+        assertTrue(access.hasRole(access.INVESTOR_ROLE(), walletB));
+
+        bytes memory signature = _voucher(walletA, NULLIFIER);
+        vm.expectRevert(InvestorGate.NullifierAlreadyUsed.selector);
+        vm.prank(walletA);
+        gate.join(NULLIFIER, expiry, signature);
+    }
+
+    function test_ResetWithNobodyJoinedWorks() public {
+        vm.prank(admin);
+        gate.reset();
+        assertEq(gate.round(), 1);
+    }
+
+    function test_ResetSkipsAWalletAlreadyRevoked() public {
+        bytes32 investorRole = access.INVESTOR_ROLE();
+        _join(walletA, NULLIFIER);
+        vm.startPrank(admin);
+        access.revokeRole(investorRole, walletA);
+        gate.reset();
+        vm.stopPrank();
+
+        assertEq(gate.joinedCount(), 0);
+    }
+
+    /// A reset removes the role, never the money: holders keep their units and still get repaid.
+    function test_ResetLeavesUnitsAndRepaymentAlone() public {
+        _join(walletA, NULLIFIER);
+        uint256 id = _listReceivable();
+        _invest(walletA, id);
+
+        vm.prank(admin);
+        gate.reset();
+        assertEq(upfront.balanceOf(walletA, id), 2);
+
+        uint256 before = usdt.balanceOf(walletA);
+        usdt.mint(seller, 100e6);
+        vm.startPrank(seller);
+        usdt.approve(address(upfront), type(uint256).max);
+        upfront.settle(id);
+        vm.stopPrank();
+
+        assertEq(usdt.balanceOf(walletA), before + 2e6);
     }
 
     function test_FailsCleanlyIfTheGateLosesItsAdminRole() public {

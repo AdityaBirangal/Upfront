@@ -8,7 +8,6 @@ export const WORLD_APP_ID = import.meta.env.VITE_WORLD_APP_ID as
   | undefined
 export const WORLD_ENVIRONMENT = (import.meta.env.VITE_WORLD_ENVIRONMENT ??
   'production') as 'production' | 'staging'
-export const WORLD_ACTION = 'join-investors'
 
 /** World ID is optional. Without these, the app works as it always has: an Admin assigns investors. */
 export const worldEnabled = Boolean(WORLD_APP_ID && BACKEND_URL && gate)
@@ -40,8 +39,9 @@ async function post<T>(path: string, body?: unknown): Promise<T> {
   throw new Error((error && WORLD_ERRORS[error]) ?? 'World ID verification failed. Try again.')
 }
 
+/** The backend picks the action, so a demo can start clean without rebuilding the app. */
 export function getRpContext() {
-  return post<RpContext>('rp-signature')
+  return post<RpContext & { action: string }>('rp-signature')
 }
 
 export function verifyProof(proof: IDKitResult, wallet: Address) {

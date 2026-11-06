@@ -7,7 +7,7 @@ import type { Address, Hex } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { deployedAddress } from '../chain/chain.service.js';
 
-export const WORLD_ACTION = 'join-investors';
+const DEFAULT_ACTION = 'join-investors';
 const VOUCHER_TTL_SECONDS = 600;
 const WORLD_TIMEOUT_MS = 10_000;
 const UNAVAILABLE = ['world_unavailable', HttpStatus.SERVICE_UNAVAILABLE] as const;
@@ -43,6 +43,7 @@ export class WorldService {
   private readonly chainId: number;
   private readonly rpId?: string;
   private readonly environment: string;
+  private readonly action: string;
   private readonly rpSigningKey?: string;
   private readonly gateSignerKey?: Hex;
   private readonly gate?: Address;
@@ -51,6 +52,7 @@ export class WorldService {
     this.chainId = Number(config.get('CHAIN_ID') || 31337);
     this.rpId = config.get<string>('WORLD_RP_ID') || undefined;
     this.environment = config.get<string>('WORLD_ENVIRONMENT') || 'production';
+    this.action = config.get<string>('WORLD_ACTION') || DEFAULT_ACTION;
     this.rpSigningKey = config.get<string>('RP_SIGNING_KEY') || undefined;
     const signerKey = config.get<string>('GATE_SIGNER_KEY');
     this.gateSignerKey = signerKey
@@ -66,9 +68,10 @@ export class WorldService {
     if (!this.rpId || !this.rpSigningKey) refuse(...UNAVAILABLE);
     const signed = signRequest({
       signingKeyHex: this.rpSigningKey,
-      action: WORLD_ACTION,
+      action: this.action,
     });
     return {
+      action: this.action,
       rp_id: this.rpId,
       nonce: signed.nonce,
       created_at: signed.createdAt,
@@ -86,6 +89,7 @@ export class WorldService {
     const address = getAddress(wallet.toLowerCase());
     const nullifierHash = this.checkProof(proof as WorldProof, address);
     await this.verifyWithWorld(proof);
+    this.logger.log(`World proof accepted: ${address} ${nullifierHash}`);
 
     const expiry = Math.floor(Date.now() / 1000) + VOUCHER_TTL_SECONDS;
     const signature = await privateKeyToAccount(
@@ -113,7 +117,7 @@ export class WorldService {
     if (
       proof?.responses?.length !== 1 ||
       proof.protocol_version !== '4.0' ||
-      proof.action !== WORLD_ACTION ||
+      proof.action !== this.action ||
       proof.environment !== this.environment ||
       response.identifier !== 'proof_of_human' ||
       typeof response.nullifier !== 'string'

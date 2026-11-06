@@ -151,8 +151,17 @@ describe('WorldService', () => {
     expect(code(thrown)).toBe('world_unavailable');
   });
 
+  it('uses the configured action', async () => {
+    const custom = service({ WORLD_ACTION: 'join-investors-2' });
+
+    expect(custom.rpContext().action).toBe('join-investors-2');
+    await expect(custom.verify(proof({ action: 'join-investors-2' }), WALLET)).resolves.toBeDefined();
+    expect(code(await custom.verify(proof(), WALLET).catch((e: unknown) => e))).toBe('invalid_proof');
+  });
+
   it('builds the request context IDKit needs', () => {
     expect(service().rpContext()).toMatchObject({
+      action: 'join-investors',
       rp_id: 'rp_test',
       nonce: expect.stringMatching(/^0x/) as string,
       signature: expect.stringMatching(/^0x/) as string,
