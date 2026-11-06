@@ -1,6 +1,6 @@
 import { IDKitRequestWidget, proofOfHuman } from '@worldcoin/idkit'
 import type { IDKitErrorCodes, IDKitResult, RpContext } from '@worldcoin/idkit'
-import { Loader2, ScanFace } from 'lucide-react'
+import { EyeOff, Loader2, ScanFace, UserCheck } from 'lucide-react'
 import { useRef, useState } from 'react'
 import type { Address } from 'viem'
 import { simulateContract, writeContract } from 'wagmi/actions'
@@ -94,19 +94,23 @@ function JoinWithWorld({ wallet }: Props) {
   const busy = starting || tx.busy
 
   return (
-    <div className="mb-6">
-      <p className="text-muted-foreground text-sm">
-        Verify with World ID to join as an investor. It proves you’re one unique human, and shares
-        nothing else about you.
-      </p>
-      <div className="mt-5">
-        <Button onClick={() => void start()} disabled={busy}>
-          {busy ? <Loader2 className="animate-spin" aria-hidden /> : <ScanFace aria-hidden />}
-          Verify with World ID
-        </Button>
-      </div>
-      {error && <ErrorNote className="mt-3 justify-center">{error}</ErrorNote>}
-      <TxStatus tx={tx} done="You’ve joined as an investor." className="mt-3 justify-center" />
+    <div className="bg-card rounded-xl border p-5 text-left shadow-sm">
+      <ul className="text-muted-foreground space-y-2.5 text-sm">
+        <li className="flex items-start gap-2.5">
+          <UserCheck className="text-primary mt-0.5 size-4 shrink-0" aria-hidden />
+          Proves you’re one unique human. One investor wallet per person.
+        </li>
+        <li className="flex items-start gap-2.5">
+          <EyeOff className="text-primary mt-0.5 size-4 shrink-0" aria-hidden />
+          Shares nothing else about you: no name, no documents.
+        </li>
+      </ul>
+      <Button size="lg" className="mt-5 w-full" onClick={() => void start()} disabled={busy}>
+        {busy ? <Loader2 className="animate-spin" aria-hidden /> : <ScanFace aria-hidden />}
+        Verify with World ID
+      </Button>
+      {error && <ErrorNote className="mt-3">{error}</ErrorNote>}
+      <TxStatus tx={tx} done="You’ve joined as an investor." className="mt-3" />
 
       {rpContext && WORLD_APP_ID && (
         <IDKitRequestWidget

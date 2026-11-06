@@ -1,4 +1,4 @@
-import { KeyRound, Loader2 } from 'lucide-react'
+import { KeyRound, Loader2, ScanFace } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router'
 import type { Address } from 'viem'
@@ -25,10 +25,13 @@ function RequireRole({ role, children }: Props) {
     return children(address)
   }
 
+  const canJoinWithWorld =
+    role === 'Investor' && worldEnabled && status === 'connected' && !!address
   const checking =
     status === 'connecting' || status === 'reconnecting' || (status === 'connected' && isPending)
 
   let body: ReactNode
+  let joining = false
   if (status === 'disconnected') {
     body = (
       <>
@@ -49,12 +52,34 @@ function RequireRole({ role, children }: Props) {
     )
   } else if (isError) {
     body = <ErrorNote className="justify-center">Couldn’t read roles from the chain.</ErrorNote>
+  } else if (canJoinWithWorld && address) {
+    joining = true
+    body = (
+      <>
+        <p className="text-muted-foreground mb-6 text-sm">
+          Verify with World ID to start buying receivables with this wallet.
+        </p>
+        <JoinWithWorld key={address} wallet={address} />
+        <div className="text-muted-foreground my-6 flex items-center gap-3 text-xs uppercase">
+          <span className="bg-border h-px flex-1" />
+          or
+          <span className="bg-border h-px flex-1" />
+        </div>
+        <p className="text-muted-foreground text-sm">
+          Ask an admin to assign the Investor role on the{' '}
+          <Link
+            to="/app/admin"
+            className="text-foreground font-medium underline underline-offset-4 hover:no-underline"
+          >
+            Roles page
+          </Link>
+          .
+        </p>
+      </>
+    )
   } else {
     body = (
       <>
-        {role === 'Investor' && worldEnabled && address && (
-          <JoinWithWorld key={address} wallet={address} />
-        )}
         <p className="text-muted-foreground text-sm">
           This wallet doesn’t have the {role} role. An admin can assign it on the Roles page.
         </p>
@@ -70,9 +95,15 @@ function RequireRole({ role, children }: Props) {
   return (
     <div className="mx-auto max-w-md py-16 text-center">
       <div className="bg-primary/10 text-primary mx-auto mb-5 flex size-12 items-center justify-center rounded-full">
-        <KeyRound className="size-5" aria-hidden />
+        {joining ? (
+          <ScanFace className="size-5" aria-hidden />
+        ) : (
+          <KeyRound className="size-5" aria-hidden />
+        )}
       </div>
-      <h1 className="mb-2 text-xl font-semibold tracking-tight">{role} access</h1>
+      <h1 className="mb-2 text-xl font-semibold tracking-tight">
+        {joining ? 'Join as an investor' : `${role} access`}
+      </h1>
       {body}
     </div>
   )
