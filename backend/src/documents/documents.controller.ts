@@ -46,11 +46,18 @@ export class DocumentsController {
   }
 
   @Get(':hash')
-  async read(@Param('hash') hash: string) {
+  async read(
+    @Param('hash') hash: string,
+    @Res({ passthrough: true }) response: Response,
+  ) {
     const bytes = await this.documents.read(hash);
+    // Stops browsers treating the bytes as anything but a PDF.
+    response.set('X-Content-Type-Options', 'nosniff');
     return new StreamableFile(bytes, {
       type: 'application/pdf',
       length: bytes.length,
+      // Opens in the browser's PDF viewer, and saves as <hash>.pdf.
+      disposition: `inline; filename="${hash}.pdf"`,
     });
   }
 }

@@ -249,6 +249,68 @@ describe('Backend (e2e)', () => {
         .expect(400)
         .expect({ error: 'invalid_hash' });
     });
+
+    it('serves PDFs inline with nosniff', async () => {
+      const hash = sha256(pdf);
+      await upload(pdf, hash).expect(201);
+
+      await request(server())
+        .get(`/documents/${hash}`)
+        .expect(200)
+        .expect('X-Content-Type-Options', 'nosniff')
+        .expect('Content-Disposition', `inline; filename="${hash}.pdf"`);
+    });
+  });
+
+  describe('upload rate limit', () => {
+    let limited: NestExpressApplication<App>;
+
+    beforeEach(async () => {
+      vi.stubEnv('UPLOAD_RATE_LIMIT', '2');
+      const moduleRef = await Test.createTestingModule({
+        imports: [AppModule],
+      }).compile();
+      limited = moduleRef.createNestApplication<NestExpressApplication>();
+      configureApp(limited);
+      await limited.init();
+    });
+
+    afterEach(() => limited.close());
+
+    const uploadFrom = (ip: string) =>
+      request(limited.getHttpServer())
+        .put(`/documents/${sha256(pdf)}`)
+        .set('Content-Type', 'application/pdf')
+        .set('X-Forwarded-For', ip)
+        .send(pdf);
+
+    it('refuses an IP over the limit, but not another IP', async () => {
+      await uploadFrom('203.0.113.1').expect(201);
+      await uploadFrom('203.0.113.1').expect(200);
+      await uploadFrom('203.0.113.1')
+        .expect(429)
+        .expect({ error: 'rate_limited' })
+        .expect('Retry-After', /^\d+$/);
+      await uploadFrom('203.0.113.2').expect(200);
+    });
+
+    it('uses the last x-forwarded-for hop, so a client cannot spoof it', async () => {
+      await uploadFrom('1.1.1.1, 203.0.113.9').expect(201);
+      await uploadFrom('2.2.2.2, 203.0.113.9').expect(200);
+      await uploadFrom('3.3.3.3, 203.0.113.9').expect(429);
+    });
+
+    it('does not count document reads', async () => {
+      const server = limited.getHttpServer();
+      await uploadFrom('203.0.113.3').expect(201);
+      for (let i = 0; i < 3; i++) {
+        await request(server)
+          .get(`/documents/${sha256(pdf)}`)
+          .set('X-Forwarded-For', '203.0.113.3')
+          .expect(200);
+      }
+      await uploadFrom('203.0.113.3').expect(200);
+    });
   });
 
   it('returns unknown routes in the plan error shape', () => {

@@ -1,12 +1,12 @@
 import { deployedAddress } from './chain.service.js';
 
 describe('deployedAddress', () => {
-  it('picks V5 on Whitechain Sepolia, above 4.5', () => {
+  it('picks V6 on Whitechain Sepolia, the newest version', () => {
     expect(deployedAddress(1874, 'upfront')).toBe(
-      '0xf28D496F897Ff6FF88425D1D618f79E0D7Ae7564',
+      '0x50eD2278EBCAA43eE213596881157a80e5041BC9',
     );
     expect(deployedAddress(1874, 'access')).toBe(
-      '0x975EA3B186F15a5eCdee6fdC4e3924f167A84F05',
+      '0x7f8dF0d47e0265Df7E1f8AF1d091757B193cECd2',
     );
   });
 
