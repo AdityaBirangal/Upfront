@@ -4,20 +4,27 @@ import { cn } from '@/lib/utils'
 import type { ValuePoint } from '@/lib/portfolio.ts'
 
 const HEIGHT = 240
-const M = { top: 12, right: 16, bottom: 28, left: 52 }
+const M = { top: 12, right: 16, bottom: 28, left: 60 }
 
-const usdt = (n: number) => n.toLocaleString([], { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+/** Shows more decimals when the whole chart spans under a cent or so, as it does on a new holding. */
+const usdt = (n: number, decimals = 2) =>
+  n.toLocaleString([], { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
 
-/** Round ticks from 0 to just above `max`: 0 / 5 / 10 / 15. */
-function niceTicks(max: number, count = 4): number[] {
-  if (max <= 0) return [0, 1]
-  const raw = max / count
+/**
+ * Round ticks around the data, not from 0: a 10% gain has to be visible next to what was invested.
+ * Padded a little either side, and never below 0.
+ */
+function niceTicks(lo: number, hi: number, count = 4): number[] {
+  const range = hi - lo || Math.abs(hi) * 0.02 || 1
+  const pad = range * 0.12
+  const min = Math.max(0, lo - pad)
+  const max = hi + pad
+  const raw = (max - min) / count
   const power = 10 ** Math.floor(Math.log10(raw))
   const step = [1, 2, 2.5, 5, 10].map((m) => m * power).find((s) => s >= raw) ?? raw
-  const ticks: number[] = []
-  for (let v = 0; v <= max + step * 0.001; v += step) ticks.push(v)
-  if (ticks[ticks.length - 1] < max) ticks.push(ticks[ticks.length - 1] + step)
-  return ticks
+  const first = Math.floor(min / step)
+  const last = Math.ceil(max / step)
+  return Array.from({ length: last - first + 1 }, (_, i) => (first + i) * step)
 }
 
 /** Time labels sized to the span: clock time inside two days, dates beyond. */
@@ -43,8 +50,8 @@ function useWidth() {
 }
 
 /**
- * Portfolio value over time as an area, with money invested as a gray line on the same USDT axis.
- * A crosshair snaps to the nearest moment and reads out both; arrow keys do the same.
+ * Portfolio value over time, with money invested as a gray line on the same USDT axis and the gain
+ * shaded between them. The axis fits the data, so it doesn't start at 0. A crosshair snaps to the nearest moment and reads out both; arrow keys do the same.
  */
 function ValueChart({ points, className }: { points: ValuePoint[]; className?: string }) {
   const [ref, width] = useWidth()
@@ -55,19 +62,27 @@ function ValueChart({ points, className }: { points: ValuePoint[]; className?: s
   const t0 = points[0]?.t ?? 0
   const t1 = points[points.length - 1]?.t ?? 1
   const span = Math.max(1, t1 - t0)
-  const yTicks = niceTicks(Math.max(...points.map((p) => Math.max(p.value, p.invested)), 0))
-  const yMax = yTicks[yTicks.length - 1] || 1
+  const all = points.flatMap((p) => [p.value, p.invested])
+  const yTicks = niceTicks(Math.min(...all), Math.max(...all))
+  const yMin = yTicks[0]
+  const yMax = yTicks[yTicks.length - 1]
+  const tickStep = yTicks[1] - yTicks[0]
+  const tickDecimals = Math.min(6, Math.max(0, Math.ceil(-Math.log10(tickStep) + 0.3)))
+  const decimals = tickStep < 0.05 ? Math.min(6, tickDecimals + 1) : 2
   const x = (t: number) => M.left + ((t - t0) / span) * plotW
-  const y = (v: number) => M.top + plotH - (v / yMax) * plotH
+  const y = (v: number) => M.top + plotH - ((v - yMin) / (yMax - yMin)) * plotH
   const fmt = timeFormat(span)
   const tickCount = Math.max(2, Math.min(6, Math.floor(plotW / 110)))
   const xTicks = Array.from({ length: tickCount }, (_, i) => t0 + (span * i) / (tickCount - 1))
 
   const line = (key: 'value' | 'invested') =>
     points.map((p, i) => `${i ? 'L' : 'M'}${x(p.t).toFixed(1)},${y(p[key]).toFixed(1)}`).join('')
-  const area = points.length
-    ? `${line('value')}L${x(t1).toFixed(1)},${y(0)}L${x(t0).toFixed(1)},${y(0)}Z`
-    : ''
+  // The gain: the band between value and invested, read off the axis either way.
+  const band = [...points]
+    .reverse()
+    .map((p) => `L${x(p.t).toFixed(1)},${y(p.invested).toFixed(1)}`)
+    .join('')
+  const gainBand = points.length ? `${line('value')}${band}Z` : ''
 
   function nearest(px: number) {
     const t = t0 + ((px - M.left) / plotW) * span
@@ -127,7 +142,7 @@ function ValueChart({ points, className }: { points: ValuePoint[]; className?: s
               <g key={v}>
                 <line x1={M.left} x2={width - M.right} y1={y(v)} y2={y(v)} className="stroke-border" strokeWidth={1} />
                 <text x={M.left - 8} y={y(v)} dy="0.32em" textAnchor="end" className="fill-muted-foreground tabular text-[11px]">
-                  {v.toLocaleString([], { maximumFractionDigits: 2 })}
+                  {usdt(v, tickDecimals)}
                 </text>
               </g>
             ))}
@@ -143,7 +158,7 @@ function ValueChart({ points, className }: { points: ValuePoint[]; className?: s
               </text>
             ))}
 
-            <path d={area} className="fill-primary" fillOpacity={0.1} />
+            <path d={gainBand} className="fill-primary" fillOpacity={0.14} />
             <path d={line('invested')} fill="none" className="stroke-muted-foreground/60" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
             <path d={line('value')} fill="none" className="stroke-primary" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
 
@@ -168,13 +183,20 @@ function ValueChart({ points, className }: { points: ValuePoint[]; className?: s
             <p className="text-muted-foreground mb-1.5">{fullTime(shown.t)}</p>
             <p className="flex items-center gap-2">
               <span className="bg-primary h-0.5 w-3 rounded-full" aria-hidden />
-              <span className="tabular text-sm font-semibold">{usdt(shown.value)}</span>
+              <span className="tabular text-sm font-semibold">{usdt(shown.value, decimals)}</span>
               <span className="text-muted-foreground ml-auto">Value</span>
             </p>
             <p className="mt-1 flex items-center gap-2">
               <span className="bg-muted-foreground/60 h-0.5 w-3 rounded-full" aria-hidden />
-              <span className="tabular font-medium">{usdt(shown.invested)}</span>
+              <span className="tabular font-medium">{usdt(shown.invested, decimals)}</span>
               <span className="text-muted-foreground ml-auto">Invested</span>
+            </p>
+            <p className="mt-1.5 flex items-center justify-between gap-2 border-t pt-1.5">
+              <span className="tabular font-medium">
+                {shown.value >= shown.invested ? '+' : '−'}
+                {usdt(Math.abs(shown.value - shown.invested), decimals)}
+              </span>
+              <span className="text-muted-foreground">Gain</span>
             </p>
           </div>
         )}

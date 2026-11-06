@@ -23,8 +23,12 @@ import {
   returnPercent,
   toReceivable,
   unitValue,
+  YIELD_HELP,
+  formatYield,
+  yieldNow,
 } from '@/receivables.ts'
 import type { Receivable } from '@/receivables.ts'
+import { useNow } from '@/useNow.ts'
 import { revertName } from '@/tx.ts'
 
 const ID = /^[1-9]\d*$/
@@ -35,6 +39,19 @@ function Term({ label, children }: { label: string; children: ReactNode }) {
       <dt className="text-muted-foreground text-xs">{label}</dt>
       <dd className="text-right text-sm font-medium sm:mt-1 sm:text-left">{children}</dd>
     </div>
+  )
+}
+
+/** Only while units can still be bought: the rate depends on the time left. */
+function YieldTerm({ r }: { r: Receivable }) {
+  const annual = yieldNow(r, useNow())
+  if (annual === null) return null
+  return (
+    <Term label="Yield p.a.">
+      <span className="text-yield tabular" title={YIELD_HELP}>
+        {formatYield(annual)}
+      </span>
+    </Term>
   )
 }
 
@@ -79,6 +96,7 @@ function Detail({ r }: { r: Receivable }) {
                   <Term label="Investor return">
                     <span className="text-yield tabular">{returnPercent(r.unitPrice)}</span>
                   </Term>
+                  <YieldTerm r={r} />
                   <Term label="Investor cap">
                     <span className="tabular">{r.maxUnitsPerInvestor.toLocaleString()}</span>
                     <span className="text-muted-foreground font-normal"> units per wallet</span>

@@ -3,8 +3,9 @@ import type { ReactNode } from 'react'
 import { Link } from 'react-router'
 import { BACKEND_URL, documentUrl } from '@/backend.ts'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
-import { formatDate, formatPercent, returnPercent, unitValue } from '@/receivables.ts'
+import { YIELD_HELP, formatDate, formatPercent, formatYield, returnPercent, unitValue, yieldNow } from '@/receivables.ts'
 import type { Receivable } from '@/receivables.ts'
+import { useNow } from '@/useNow.ts'
 import Stat from './Stat.tsx'
 import StatusBadge from './StatusBadge.tsx'
 import Usdt from './Usdt.tsx'
@@ -21,6 +22,7 @@ type Props = {
 /** Side panel opened from a list row: the receivable's terms, then the forms to act on it. */
 function ReceivableSheet({ receivable: r, trigger, children }: Props) {
   const listed = r.unitPrice > 0n
+  const annual = yieldNow(r, useNow())
   return (
     <Sheet>
       <SheetTrigger asChild>{trigger}</SheetTrigger>
@@ -48,6 +50,13 @@ function ReceivableSheet({ receivable: r, trigger, children }: Props) {
               <Stat label="Return at settlement">
                 <span className="text-yield tabular">{returnPercent(r.unitPrice)}</span>
               </Stat>
+              {annual !== null && (
+                <Stat label="Yield p.a.">
+                  <span className="text-yield tabular" title={YIELD_HELP}>
+                    {formatYield(annual)}
+                  </span>
+                </Stat>
+              )}
             </>
           )}
         </dl>

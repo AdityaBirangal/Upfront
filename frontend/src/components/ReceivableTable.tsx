@@ -3,11 +3,24 @@ import type { ReactNode } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
+import { sortRows, useSort } from '@/lib/sort.ts'
+import type { SortDir, SortState, SortValue } from '@/lib/sort.ts'
 import type { Receivable } from '@/receivables.ts'
+import { useNow } from '@/useNow.ts'
 import EmptyState from './EmptyState.tsx'
 import ErrorNote from './ErrorNote.tsx'
+import SortHead from './SortHead.tsx'
 
-export type Column = { label: string; className?: string }
+export type Column = {
+  label: string
+  className?: string
+  /** Explains the column on hover. */
+  title?: string
+  /** Makes the column sortable, by this value. */
+  value?: (receivable: Receivable, now: bigint) => SortValue
+  /** The direction a first click sorts in. */
+  first?: SortDir
+}
 
 type Props = {
   receivables: Receivable[]
@@ -15,6 +28,8 @@ type Props = {
   isError: boolean
   empty: { title: string; body?: ReactNode; action?: ReactNode }
   columns: Column[]
+  /** The sort shown first: a column's label and direction. */
+  defaultSort: SortState
   /** One <tr> per receivable, with a cell for each column. */
   row: (receivable: Receivable) => ReactNode
   label: string
@@ -43,7 +58,10 @@ function TableSkeleton({ rows = 3 }: { rows?: number }) {
  * Receivables as a dense, scannable list, like a bond screener: one row each, only the numbers
  * you compare, and the row's action at the end. Detail and forms live behind the action.
  */
-function ReceivableTable({ receivables, isPending, isError, empty, columns, row, label }: Props) {
+function ReceivableTable({ receivables, isPending, isError, empty, columns, defaultSort, row, label }: Props) {
+  const { sort, toggle } = useSort(defaultSort)
+  const now = useNow()
+
   if (isPending) return <TableSkeleton />
   if (isError) return <ErrorNote>Couldn’t read receivables from the chain. Check your connection and refresh.</ErrorNote>
   if (receivables.length === 0) {
@@ -54,27 +72,32 @@ function ReceivableTable({ receivables, isPending, isError, empty, columns, row,
     )
   }
 
+  const value = columns.find((c) => c.label === sort.key)?.value
+  const rows = value ? sortRows(receivables, (r) => value(r, now), sort.dir) : receivables
+
   return (
     <div className="bg-card overflow-hidden rounded-xl border">
       <Table aria-label={label}>
         <TableHeader className="bg-muted/40">
           <TableRow className="hover:bg-transparent">
-            {columns.map((c, i) => (
-              <TableHead
-                key={c.label || i}
-                className={cn(
-                  'text-muted-foreground h-9 text-xs font-medium',
-                  i === 0 && 'pl-4',
-                  i === columns.length - 1 && 'pr-4',
-                  c.className,
-                )}
-              >
-                {c.label}
-              </TableHead>
-            ))}
+            {columns.map((c, i) => {
+              const className = cn(
+                'text-muted-foreground h-9 text-xs font-medium',
+                i === 0 && 'pl-4',
+                i === columns.length - 1 && 'pr-4',
+                c.className,
+              )
+              return c.value ? (
+                <SortHead key={c.label} label={c.label} title={c.title} first={c.first} sort={sort} onSort={toggle} className={className} />
+              ) : (
+                <TableHead key={c.label || i} className={className}>
+                  {c.label}
+                </TableHead>
+              )
+            })}
           </TableRow>
         </TableHeader>
-        <TableBody>{receivables.map(row)}</TableBody>
+        <TableBody>{rows.map(row)}</TableBody>
       </Table>
     </div>
   )

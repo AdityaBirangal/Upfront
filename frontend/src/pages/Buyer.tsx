@@ -6,10 +6,12 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import PageHeader from '@/components/PageHeader.tsx'
 import ReceivableActions from '@/components/ReceivableActions.tsx'
 import type { ReceivableAction } from '@/components/ReceivableActions.tsx'
-import ReceivableList from '@/components/ReceivableList.tsx'
+import ReceivableTable from '@/components/ReceivableTable.tsx'
+import { BUYER_COLUMNS, BuyerRow } from '@/components/ReceivableRows.tsx'
 import { useReceivables } from '@/chain.ts'
 import { canReject, canVerify } from '@/receivables.ts'
 import type { Receivable } from '@/receivables.ts'
+import { useNow } from '@/useNow.ts'
 
 type Props = {
   wallet: Address
@@ -54,6 +56,7 @@ function Buyer({ wallet }: Props) {
   const pending = mine.filter(needsReview)
   const [tab, setTab] = useState<'review' | 'all'>('review')
   const shown = tab === 'review' ? pending : mine
+  const now = useNow()
 
   return (
     <>
@@ -71,18 +74,26 @@ function Buyer({ wallet }: Props) {
           </TabsTrigger>
         </TabsList>
       </Tabs>
-      <ReceivableList
+      <ReceivableTable
+        label="Receivables naming this wallet"
         receivables={shown}
         isPending={isPending}
         isError={isError}
-        party="seller"
-        columns={2}
+        columns={BUYER_COLUMNS}
+        defaultSort={{ key: 'Due', dir: 'asc' }}
         empty={
           tab === 'review' && mine.length > 0
             ? { title: 'Nothing to review', body: 'Every receivable naming this wallet has been handled.' }
             : { title: 'No receivables name this wallet', body: 'When a seller names you as the buyer, it appears here for you to verify.' }
         }
-        extra={(receivable) => <ReceivableActions id={receivable.id} actions={actionsFor(receivable)} />}
+        row={(receivable) => (
+          <BuyerRow
+            key={receivable.id}
+            r={receivable}
+            now={now}
+            review={needsReview(receivable) ? <ReceivableActions id={receivable.id} actions={actionsFor(receivable)} /> : null}
+          />
+        )}
       />
     </>
   )
