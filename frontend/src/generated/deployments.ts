@@ -29,6 +29,11 @@ export const deployments = {
         "upfront": "0xB4322700bFc3bcA3bBBEe54FCb14aE661001c40E",
         "access": "0xbE0c62a7d0DbbedB6f4B9f420EB0BEad429886ca",
         "deployBlock": 12325824
+      },
+      "4.5": {
+        "upfront": "0x16f1Dad004F58E77CCc961c711DEc82D1bb1116a",
+        "access": "0xf86E710CAa4D6e21A6f1bAC164656ADE8Ed1C101",
+        "deployBlock": 12351083
       }
     }
   },
