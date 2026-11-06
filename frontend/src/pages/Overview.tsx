@@ -1,20 +1,16 @@
-import { ChevronRight, Inbox, ShieldAlert, ShieldCheck } from 'lucide-react'
+import { ChevronRight } from 'lucide-react'
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { Link } from 'react-router'
 import { useConnection } from 'wagmi'
-import { Skeleton } from '@/components/ui/skeleton'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import EmptyState from '@/components/EmptyState.tsx'
-import ErrorNote from '@/components/ErrorNote.tsx'
 import PageHeader from '@/components/PageHeader.tsx'
-import StatusBadge from '@/components/StatusBadge.tsx'
-import Usdt from '@/components/Usdt.tsx'
+import ReceivableTable from '@/components/ReceivableTable.tsx'
+import { OVERVIEW_COLUMNS, OverviewRow } from '@/components/ReceivableRows.tsx'
 import { NAV } from '@/components/layout/nav.ts'
 import { useReceivables, useRoles } from '@/chain.ts'
 import { cn } from '@/lib/utils'
-import { formatDate, returnPercent, unitValue } from '@/receivables.ts'
 import type { Receivable } from '@/receivables.ts'
+import { useNow } from '@/useNow.ts'
 
 type Filter = 'all' | 'open' | 'closed'
 
@@ -90,9 +86,8 @@ function Workspaces() {
 function ReceivablesTable() {
   const { receivables, isPending, isError } = useReceivables()
   const [filter, setFilter] = useState<Filter>('all')
-  const navigate = useNavigate()
-  const newest = [...receivables].reverse()
-  const shown = newest.filter((r) =>
+  const now = useNow()
+  const shown = receivables.filter((r) =>
     filter === 'all' ? true : filter === 'open' ? isOpen(r) : !isOpen(r),
   )
   const openCount = receivables.filter(isOpen).length
@@ -104,7 +99,7 @@ function ReceivablesTable() {
           <h2 id="receivables" className="font-semibold tracking-tight">
             Receivables onchain
           </h2>
-          <p className="text-muted-foreground text-sm">Every receivable on this deployment, newest first.</p>
+          <p className="text-muted-foreground text-sm">Every receivable on this deployment.</p>
         </div>
         <Tabs value={filter} onValueChange={(value) => setFilter(value as Filter)}>
           <TabsList>
@@ -122,81 +117,20 @@ function ReceivablesTable() {
         </Tabs>
       </div>
 
-      {isPending ? (
-        <div className="space-y-2 rounded-xl border p-4" aria-busy aria-label="Loading">
-          {Array.from({ length: 4 }, (_, index) => (
-            <Skeleton key={index} className="h-9" />
-          ))}
-        </div>
-      ) : isError ? (
-        <ErrorNote>Couldn’t read receivables from the chain. Check your connection and refresh.</ErrorNote>
-      ) : shown.length === 0 ? (
-        <EmptyState icon={Inbox} title={receivables.length === 0 ? 'No receivables yet' : 'Nothing here'}>
-          {receivables.length === 0
-            ? 'Receivables appear here once a seller creates one.'
-            : 'No receivables match this filter.'}
-        </EmptyState>
-      ) : (
-        <div className="bg-card rounded-xl border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="pl-4">Receivable</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Face value</TableHead>
-                <TableHead className="text-right">Return</TableHead>
-                <TableHead className="text-right">Sold</TableHead>
-                <TableHead className="pr-4 text-right">Due</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {shown.map((r) => (
-                <TableRow
-                  key={r.id}
-                  className="cursor-pointer"
-                  onClick={() => navigate(`/app/receivable/${r.id}`)}
-                >
-                  <TableCell className="pl-4">
-                    <Link
-                      to={`/app/receivable/${r.id}`}
-                      className="font-medium underline-offset-4 hover:underline"
-                      onClick={(event) => event.stopPropagation()}
-                    >
-                      {r.ref || 'No reference'}
-                    </Link>
-                    <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
-                      <span className="tabular">#{r.id.toString()}</span>
-                      {r.verified ? (
-                        <ShieldCheck className="text-state-settled size-3.5" aria-label="Verified by buyer" />
-                      ) : (
-                        <ShieldAlert className="text-warning size-3.5" aria-label="Not verified by buyer" />
-                      )}
-                    </p>
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge status={r.status} />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Usdt value={unitValue(r.totalUnits)} />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {r.unitPrice > 0n ? (
-                      <span className="text-yield tabular font-medium">{returnPercent(r.unitPrice)}</span>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="tabular text-right">
-                    {r.unitsSold.toLocaleString()}
-                    <span className="text-muted-foreground"> / {r.totalUnits.toLocaleString()}</span>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground pr-4 text-right">{formatDate(r.dueDate)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+      <ReceivableTable
+        label="Receivables onchain"
+        receivables={shown}
+        isPending={isPending}
+        isError={isError}
+        columns={OVERVIEW_COLUMNS}
+        defaultSort={{ key: 'Receivable', dir: 'desc' }}
+        empty={
+          receivables.length === 0
+            ? { title: 'No receivables yet', body: 'Receivables appear here once a seller creates one.' }
+            : { title: 'Nothing here', body: 'No receivables match this filter.' }
+        }
+        row={(r) => <OverviewRow key={r.id} r={r} now={now} />}
+      />
     </section>
   )
 }

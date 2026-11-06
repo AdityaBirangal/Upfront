@@ -199,3 +199,28 @@ export function sharePercent(units: bigint, totalUnits: bigint): string {
   if (totalUnits === 0n) return '0%'
   return `${(Number((units * 1000n) / totalUnits) / 10).toLocaleString([], { maximumFractionDigits: 1 })}%`
 }
+
+const SECONDS_PER_YEAR = 365 * 86_400
+
+/** Simple annual rate, as a percent, for a gain over a period. Null if the period isn't positive. */
+export function annualise(gain: number, seconds: number): number | null {
+  return seconds > 0 ? gain * (SECONDS_PER_YEAR / seconds) * 100 : null
+}
+
+/**
+ * What buying a unit now earns per year if it's repaid at the due date: the money-market simple
+ * yield, (1 - price) / price x 365 / days left. Null unless units can still be bought at a price.
+ */
+export function yieldNow(r: Receivable, now: bigint): number | null {
+  if (r.status !== 'Listed' || r.unitPrice === 0n || now >= r.dueDate) return null
+  return annualise(Number(UNIT - r.unitPrice) / Number(r.unitPrice), Number(r.dueDate - now))
+}
+
+/** A yield for display. Short-dated deals annualise to huge numbers, so those show as >999%. */
+export function formatYield(percent: number | null): string {
+  if (percent === null) return '—'
+  if (percent > 999) return '>999%'
+  return `${percent.toLocaleString([], { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`
+}
+
+export const YIELD_HELP = 'Simple annual rate if units are held to the due date: return × 365 ÷ days left.'

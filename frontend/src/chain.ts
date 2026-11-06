@@ -139,6 +139,7 @@ export type HolderPayment = {
   units: bigint
   amount: bigint
   txHash: Hash
+  blockNumber: bigint
 }
 
 /** Every payment `settle` made to a holder, optionally for one receivable or one holder. */
@@ -167,6 +168,7 @@ export function useHolderPayments(filter: { id?: bigint; holder?: Address }) {
         units: log.args.units ?? 0n,
         amount: log.args.amount ?? 0n,
         txHash: log.transactionHash,
+        blockNumber: log.blockNumber,
       }))
     },
   })
@@ -233,6 +235,32 @@ export function useTimeline(id: bigint) {
         .sort((a, b) =>
           a.blockNumber === b.blockNumber ? a.logIndex - b.logIndex : a.blockNumber < b.blockNumber ? -1 : 1,
         )
+    },
+  })
+}
+
+/** Block times in Unix seconds, keyed by block number. Blocks that can't be read are left out. */
+export function useBlockTimes(blockNumbers: bigint[]) {
+  const client = usePublicClient({ chainId: upfront.chainId })
+  const unique = [...new Set(blockNumbers)].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
+
+  return useQuery({
+    queryKey: ['blockTimes', upfront.chainId, unique.map(String)],
+    enabled: Boolean(client) && unique.length > 0,
+    staleTime: Infinity,
+    queryFn: async (): Promise<Map<bigint, bigint>> => {
+      const times = new Map<bigint, bigint>()
+      if (!client) return times
+      await Promise.all(
+        unique.map(async (blockNumber) => {
+          try {
+            times.set(blockNumber, (await client.getBlock({ blockNumber })).timestamp)
+          } catch {
+            // A missing time drops that point from the chart; the holding still shows in the table.
+          }
+        }),
+      )
+      return times
     },
   })
 }

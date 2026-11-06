@@ -4,20 +4,23 @@ import { isAddressEqual } from 'viem'
 import type { Address } from 'viem'
 import { useReadContract, useReadContracts } from 'wagmi'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Table, TableBody, TableHeader, TableRow } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import BuyForm from '@/components/BuyForm.tsx'
 import EmptyState from '@/components/EmptyState.tsx'
 import ErrorNote from '@/components/ErrorNote.tsx'
-import HoldingRow from '@/components/HoldingRow.tsx'
+import HoldingRow, { HOLDING_COLUMNS } from '@/components/HoldingRow.tsx'
 import PageHeader from '@/components/PageHeader.tsx'
-import Section from '@/components/Section.tsx'
-import TransferForm from '@/components/TransferForm.tsx'
-import ReceivableList from '@/components/ReceivableList.tsx'
+import SortHead from '@/components/SortHead.tsx'
+import PortfolioOverview from '@/components/portfolio/PortfolioOverview.tsx'
+import ReceivableTable from '@/components/ReceivableTable.tsx'
+import { MARKET_COLUMNS, MarketRow } from '@/components/ReceivableRows.tsx'
 import Usdt from '@/components/Usdt.tsx'
-import { useHolderPayments, useInvestments, useReceivables } from '@/chain.ts'
+import { useBlockTimes, useHolderPayments, useInvestments, useReceivables } from '@/chain.ts'
 import { upfront, usdt } from '@/contracts.ts'
-import { unitValue } from '@/receivables.ts'
+import { holdingFigures } from '@/lib/portfolio.ts'
+import { sortRows, useSort } from '@/lib/sort.ts'
+import { cn } from '@/lib/utils'
 import { useNow } from '@/useNow.ts'
 
 type Props = {
@@ -27,13 +30,9 @@ type Props = {
 function Invest({ wallet }: Props) {
   const [tab, setTab] = useState<'market' | 'portfolio'>('market')
   const { receivables, isPending, isError } = useReceivables()
-  const [sort, setSort] = useState<'newest' | 'return'>('newest')
-  const newest = receivables.filter((r) => r.status === 'Listed').reverse()
-  // A lower unit price pays a higher return at settlement.
-  const listed =
-    sort === 'return'
-      ? [...newest].sort((a, b) => (a.unitPrice === b.unitPrice ? 0 : a.unitPrice < b.unitPrice ? -1 : 1))
-      : newest
+  const now = useNow()
+  // Past the due date, units can't be bought, so those stay off the marketplace.
+  const listed = receivables.filter((r) => r.status === 'Listed' && now < r.dueDate)
 
   const balances = useReadContract({
     ...upfront,
@@ -56,14 +55,8 @@ function Invest({ wallet }: Props) {
   const [usdtBalance, allowance] = money.data ?? []
 
   const investments = useInvestments({ investor: wallet })
-  const paidFor = (id: bigint) =>
-    (investments.data ?? [])
-      .filter((investment) => investment.id === id)
-      .reduce((sum, investment) => sum + investment.paid, 0n)
-
   const payments = useHolderPayments({ holder: wallet })
   const repaidFor = (id: bigint) => (payments.data ?? []).find((payment) => payment.id === id)
-  const now = useNow()
 
   // Sellers hold their own units until they sell, so those aren't investments. Settlement burns
   // units, so repaid holdings come from HolderPaid events.
@@ -77,16 +70,21 @@ function Invest({ wallet }: Props) {
     })
     .reverse()
 
-  const totals = holdings.reduce(
-    (sum, { receivable, units, repaid }) => {
-      const paid = paidFor(receivable.id)
-      sum.invested += paid
-      if (repaid) sum.realised += repaid.amount - paid
-      else if (receivable.status !== 'Defaulted') sum.expected += unitValue(units)
-      return sum
-    },
-    { invested: 0n, expected: 0n, realised: 0n },
+  const times = useBlockTimes([
+    ...(investments.data ?? []).map((i) => i.blockNumber),
+    ...(payments.data ?? []).map((p) => p.blockNumber),
+  ])
+  const figures = holdings.map((holding) =>
+    holdingFigures(
+      holding,
+      investments.data?.filter((i) => i.id === holding.receivable.id),
+      times.data,
+      now,
+    ),
   )
+  const { sort: holdingSort, toggle: sortHoldings } = useSort({ key: 'Receivable', dir: 'desc' })
+  const holdingValue = HOLDING_COLUMNS.find((c) => c.label === holdingSort.key)?.value
+  const sortedFigures = holdingValue ? sortRows(figures, holdingValue, holdingSort.dir) : figures
 
   const holdingsPending = isPending || (receivables.length > 0 && balances.isPending)
 
@@ -126,34 +124,31 @@ function Invest({ wallet }: Props) {
         </TabsList>
 
         <TabsContent value="market" className="space-y-3">
-          {newest.length > 1 && (
-            <div className="flex items-center justify-end gap-2 text-sm">
-              <span className="text-muted-foreground">Sort by</span>
-              <Tabs value={sort} onValueChange={(value) => setSort(value as 'newest' | 'return')}>
-                <TabsList>
-                  <TabsTrigger value="newest">Newest</TabsTrigger>
-                  <TabsTrigger value="return">Highest return</TabsTrigger>
-                </TabsList>
-              </Tabs>
-            </div>
-          )}
-          <ReceivableList
+          <ReceivableTable
+            label="Listed receivables"
             receivables={listed}
             isPending={isPending}
             isError={isError}
-            party="seller"
-            columns={2}
+            columns={MARKET_COLUMNS}
+            defaultSort={{ key: 'Receivable', dir: 'desc' }}
             empty={{
               title: 'Nothing is listed right now',
               body: 'Listed receivables appear here as soon as a seller lists one.',
             }}
-            extra={(receivable) => (
-              <BuyForm
-                receivable={receivable}
-                wallet={wallet}
-                held={held(receivable.id)}
-                balance={usdtBalance}
-                allowance={allowance}
+            row={(receivable) => (
+              <MarketRow
+                key={receivable.id}
+                r={receivable}
+                now={now}
+                buy={
+                  <BuyForm
+                    receivable={receivable}
+                    wallet={wallet}
+                    held={held(receivable.id)}
+                    balance={usdtBalance}
+                    allowance={allowance}
+                  />
+                }
               />
             )}
           />
@@ -186,64 +181,39 @@ function Invest({ wallet }: Props) {
             </EmptyState>
           ) : (
             <>
-              <dl className="bg-card grid grid-cols-1 divide-y rounded-xl border sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-                <div className="px-5 py-4">
-                  <dt className="text-muted-foreground text-xs">Invested</dt>
-                  <dd className="mt-1 text-lg font-semibold">
-                    {investments.isSuccess ? <Usdt value={totals.invested} /> : '…'}
-                  </dd>
-                </div>
-                <div className="px-5 py-4">
-                  <dt className="text-muted-foreground text-xs">Expected payout</dt>
-                  <dd className="mt-1 text-lg font-semibold">
-                    <Usdt value={totals.expected} />
-                  </dd>
-                </div>
-                <div className="px-5 py-4">
-                  <dt className="text-muted-foreground text-xs">Profit realised</dt>
-                  <dd className="text-state-settled mt-1 text-lg font-semibold">
-                    {investments.isSuccess ? <Usdt value={totals.realised} signed /> : '…'}
-                  </dd>
-                </div>
-              </dl>
-              <div className="bg-card rounded-xl border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="pl-4">Receivable</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Units</TableHead>
-                      <TableHead className="text-right">Invested</TableHead>
-                      <TableHead className="text-right">Payout</TableHead>
-                      <TableHead className="text-right">Profit</TableHead>
-                      <TableHead className="pr-4 text-right">Due</TableHead>
+              <PortfolioOverview
+                wallet={wallet}
+                holdings={holdings}
+                receivables={receivables}
+                investments={investments.data ?? []}
+                payments={payments.data ?? []}
+                now={now}
+              />
+              <h3 className="mt-2 font-semibold tracking-tight">Holdings</h3>
+              <div className="bg-card overflow-hidden rounded-xl border">
+                <Table aria-label="Holdings">
+                  <TableHeader className="bg-muted/40">
+                    <TableRow className="hover:bg-transparent">
+                      {HOLDING_COLUMNS.map((c) => (
+                        <SortHead
+                          key={c.label}
+                          label={c.label}
+                          title={c.title}
+                          first={c.first}
+                          sort={holdingSort}
+                          onSort={sortHoldings}
+                          className={cn('text-muted-foreground h-9 text-xs', c.className)}
+                        />
+                      ))}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {holdings.map(({ receivable, units, repaid }) => (
-                      <HoldingRow
-                        key={receivable.id}
-                        receivable={receivable}
-                        units={units}
-                        paid={investments.isSuccess ? paidFor(receivable.id) : undefined}
-                        repaid={repaid}
-                        now={now}
-                      />
+                    {sortedFigures.map((holding) => (
+                      <HoldingRow key={holding.receivable.id} holding={holding} now={now} />
                     ))}
                   </TableBody>
                 </Table>
               </div>
-              {holdings.some(({ units }) => units > 0n) && (
-                <Section
-                  title="Transfer units"
-                  description="Send units you hold to another wallet. The smart contract checks the transfer rules."
-                >
-                  <TransferForm
-                    wallet={wallet}
-                    holdings={holdings.filter(({ units }) => units > 0n)}
-                  />
-                </Section>
-              )}
             </>
           )}
         </TabsContent>

@@ -1,33 +1,42 @@
 import { ExternalLink } from 'lucide-react'
 import { Link } from 'react-router'
-import type { Hash } from 'viem'
 import { TableCell, TableRow } from '@/components/ui/table'
 import { explorerTxUrl } from '@/contracts.ts'
+import type { HoldingFigures } from '@/lib/portfolio.ts'
+import type { SortDir, SortValue } from '@/lib/sort.ts'
 import { cn } from '@/lib/utils'
-import { formatDuration, sharePercent, unitValue } from '@/receivables.ts'
-import type { Receivable } from '@/receivables.ts'
+import { STATUSES, YIELD_HELP, formatDuration, formatYield, sharePercent } from '@/receivables.ts'
 import StatusBadge from './StatusBadge.tsx'
 import Usdt from './Usdt.tsx'
 
-type Props = {
-  receivable: Receivable
-  /** Units held now. Settlement burns them. */
-  units: bigint
-  /** USDT this wallet paid in `invest`, or undefined while loading or unknown. */
-  paid: bigint | undefined
-  /** What `settle` paid this wallet, read from HolderPaid events. */
-  repaid: { units: bigint; amount: bigint; txHash: Hash } | undefined
-  now: bigint
-}
+const HIDE_MD = 'hidden md:table-cell'
+
+export const HOLDING_COLUMNS: {
+  label: string
+  className?: string
+  title?: string
+  first?: SortDir
+  value: (h: HoldingFigures) => SortValue
+}[] = [
+  { label: 'Receivable', className: 'pl-4', value: (h) => h.receivable.id },
+  { label: 'Status', value: (h) => STATUSES.indexOf(h.receivable.status), first: 'asc' },
+  { label: 'Units', className: 'text-right', value: (h) => h.shownUnits },
+  { label: 'Invested', className: 'text-right', value: (h) => h.paid },
+  { label: 'Payout', className: 'text-right', value: (h) => h.payout },
+  { label: 'Profit', className: 'text-right', value: (h) => h.profit },
+  {
+    label: 'Yield p.a.',
+    title: `${YIELD_HELP} Counted from when you bought, to the payout if it has been paid.`,
+    className: cn('text-right', HIDE_MD),
+    value: (h) => h.annual,
+  },
+  { label: 'Due', className: 'pr-4 text-right', value: (h) => h.receivable.dueDate, first: 'asc' },
+]
 
 /** One portfolio row: what was paid, and what happened at settlement. */
-function HoldingRow({ receivable, units, paid, repaid, now }: Props) {
+function HoldingRow({ holding, now }: { holding: HoldingFigures; now: bigint }) {
+  const { receivable, repaid, shownUnits, paid, payout, profit, lost, annual } = holding
   const repaidUrl = repaid ? explorerTxUrl(repaid.txHash) : null
-  const defaulted = receivable.status === 'Defaulted'
-  // Settlement burns the units, so show the units that were repaid instead.
-  const shownUnits = units > 0n ? units : (repaid?.units ?? 0n)
-  const payout = repaid ? repaid.amount : defaulted ? 0n : unitValue(units)
-  const profit = paid === undefined ? undefined : payout - paid
   const open = receivable.status === 'Listed' || receivable.status === 'Funded'
 
   return (
@@ -55,9 +64,7 @@ function HoldingRow({ receivable, units, paid, repaid, now }: Props) {
       </TableCell>
       <TableCell className="text-right">
         <Usdt value={payout} />
-        <p className="text-muted-foreground text-xs">
-          {repaid ? 'Paid' : defaulted ? 'Not repaid' : 'Expected'}
-        </p>
+        <p className="text-muted-foreground text-xs">{repaid ? 'Paid' : lost ? 'Not repaid' : 'Expected'}</p>
       </TableCell>
       <TableCell className="text-right">
         {profit === undefined ? (
@@ -72,6 +79,9 @@ function HoldingRow({ receivable, units, paid, repaid, now }: Props) {
             )}
           />
         )}
+      </TableCell>
+      <TableCell className={cn('tabular text-right', HIDE_MD, annual === null ? 'text-muted-foreground' : 'text-yield font-medium')}>
+        {formatYield(annual)}
       </TableCell>
       <TableCell className="pr-4 text-right">
         {repaidUrl ? (
