@@ -7,6 +7,15 @@ import { roleName } from './contracts.ts'
 import { shortAddress } from './receivables.ts'
 import { config, targetChain } from './wagmi.ts'
 
+/** `TransferNotAllowed(reason)`, by the position of `TransferBlock` in the smart contract. */
+const TRANSFER_BLOCKS = [
+  'The receiving wallet is not an approved investor.',
+  "The seller and buyer of a receivable can't hold its units.",
+  'Units can only move while the receivable is listed or funded.',
+  'The due date has passed, so units can no longer move.',
+  "That would take the receiving wallet over the receivable's per-investor cap.",
+]
+
 const CONTRACT_ERRORS: Record<string, string> = {
   SellerIsBuyer: "The seller and buyer can't be the same wallet.",
   InvalidFaceValue: 'The amount must be a whole number of USDT above 0.',
@@ -31,6 +40,8 @@ const CONTRACT_ERRORS: Record<string, string> = {
   ERC20InsufficientBalance: "This wallet doesn't have enough USDT.",
   ERC20InsufficientAllowance: 'Approve enough USDT first.',
   NotDue: "It isn't due yet, so it can't be marked as defaulted.",
+  ERC1155InsufficientBalance: "This wallet doesn't hold that many units.",
+  ERC1155InvalidReceiver: "That wallet can't receive units.",
   ZeroAddress: 'An address is missing.',
   AccessControlUnauthorizedAccount: 'Only an admin wallet can change roles.',
   AccessControlBadConfirmation: 'Only the wallet itself can renounce its role.',
@@ -71,6 +82,12 @@ export function txErrorMessage(error: unknown): string {
     if (name === 'NotAllowed' && revert.data?.args) {
       const [account, role] = revert.data.args as [Address, Hex]
       return `${shortAddress(account)} doesn't have the ${roleName(role)} role.`
+    }
+    if (name === 'TransferNotAllowed' && revert.data?.args) {
+      const [reason] = revert.data.args as [number]
+      return `The smart contract refused the transfer. ${
+        TRANSFER_BLOCKS[Number(reason)] ?? 'It breaks a transfer rule.'
+      }`
     }
     return (
       (name && CONTRACT_ERRORS[name]) ??

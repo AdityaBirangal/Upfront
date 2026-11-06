@@ -11,6 +11,8 @@ import EmptyState from '@/components/EmptyState.tsx'
 import ErrorNote from '@/components/ErrorNote.tsx'
 import HoldingRow from '@/components/HoldingRow.tsx'
 import PageHeader from '@/components/PageHeader.tsx'
+import Section from '@/components/Section.tsx'
+import TransferForm from '@/components/TransferForm.tsx'
 import ReceivableList from '@/components/ReceivableList.tsx'
 import Usdt from '@/components/Usdt.tsx'
 import { useHolderPayments, useInvestments, useReceivables } from '@/chain.ts'
@@ -214,6 +216,17 @@ function Invest({ wallet }: Props) {
                   </TableBody>
                 </Table>
               </div>
+              {holdings.some(({ units }) => units > 0n) && (
+                <Section
+                  title="Transfer units"
+                  description="Send units you hold to another wallet. The smart contract checks the transfer rules."
+                >
+                  <TransferForm
+                    wallet={wallet}
+                    holdings={holdings.filter(({ units }) => units > 0n)}
+                  />
+                </Section>
+              )}
             </>
           )}
         </TabsContent>
