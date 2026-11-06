@@ -3,7 +3,25 @@
 Real transactions on Whitechain Sepolia (chain ID 1874), using real test USDT. The final demo run
 replaces this list at V6.
 
-## Full lifecycle with real USDT (V4)
+## Seller settlement with real USDT (V4.5)
+
+This is the flow we demo. Smart contract: [`Upfront`](https://explorer.testnet.whitechain.io/address/0x16f1dad004f58e77ccc961c711dec82d1bb1116a).
+Receivable #1, face value 10 USDT, verified by the buyer, two investors at a 3% discount. It ended
+Settled. Investors earned 0.18 and 0.12 USDT, and the smart contract never held any USDT.
+
+| Step | Wallet | Result | Transaction |
+|---|---|---|---|
+| Create | Seller | 10 units minted to the seller | [`0xdd7511be…`](https://explorer.testnet.whitechain.io/tx/0xdd7511bea5aa631ffcf395cf9ce1b7b48071787419e4635e2c2bfbe53019aa2d) |
+| Verify | Buyer | Verified tag set | [`0x7c4e41ca…`](https://explorer.testnet.whitechain.io/tx/0x7c4e41caab706ca908fc57d2983649a3a36da7ea3a776a03556db270ccbd06f1) |
+| List | Seller | 0.97 USDT per unit, investor cap 6 | [`0xd1735adb…`](https://explorer.testnet.whitechain.io/tx/0xd1735adbd34f7d945780d05b60654bcf529b52c7ae9528c75006f4c78a28def6) |
+| Approve | Investor 1 | 5.82 USDT allowance | [`0x310a551d…`](https://explorer.testnet.whitechain.io/tx/0x310a551d9f893f132e61d705cd814c800eccff1d77ccf0ddf0ee20492f0253cc) |
+| **Invest** | Investor 1 | **5.82 USDT to the seller and 6 units to the investor, in one transaction** | [`0xe729cb76…`](https://explorer.testnet.whitechain.io/tx/0xe729cb7663e9c9f73c64afe8b99a5acbe891a70bd742ea6c24d5f54741c2c87c) |
+| Approve | Investor 2 | 3.88 USDT allowance | [`0x79b1777d…`](https://explorer.testnet.whitechain.io/tx/0x79b1777dc4c7ef1566ec5e10b68becc01c8a059bf699f2f60d01860655e1bb3d) |
+| **Invest** | Investor 2 | **3.88 USDT to the seller and 4 units to the investor. Status becomes Funded** | [`0x8a6c562c…`](https://explorer.testnet.whitechain.io/tx/0x8a6c562c36d8b5fcf7cabff155d0b1b03aea3e4820059f31bb00f9b3787061fa) |
+| Approve | Seller | 10 USDT allowance | [`0x73c10f93…`](https://explorer.testnet.whitechain.io/tx/0x73c10f939adf016a7a29d236053acc92c46137c6fb309499eda062d5f506e06a) |
+| **Settle** | Seller | **One transaction pays 6 USDT to Investor 1 and 4 USDT to Investor 2, and burns all units** | [`0x5dc57cfd…`](https://explorer.testnet.whitechain.io/tx/0x5dc57cfd3b401db3cd993ab0fe721aa2c4f7dad9b68ccfe5a2897a5d97250f0e) |
+
+## Full lifecycle with real USDT (V4, replaced)
 
 Smart contract: [`Upfront`](https://explorer.testnet.whitechain.io/address/0xb4322700bfc3bca3bbbee54fcb14ae661001c40e).
 The smart contract ended holding 0 USDT.

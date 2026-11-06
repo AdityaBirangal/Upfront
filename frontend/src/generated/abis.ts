@@ -376,11 +376,6 @@ export const upfrontAbi = [
         "name": "uri_",
         "type": "string",
         "internalType": "string"
-      },
-      {
-        "name": "gracePeriod_",
-        "type": "uint64",
-        "internalType": "uint64"
       }
     ],
     "stateMutability": "nonpayable"
@@ -475,19 +470,6 @@ export const upfrontAbi = [
   {
     "type": "function",
     "name": "cancelReceivable",
-    "inputs": [
-      {
-        "name": "id",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "claim",
     "inputs": [
       {
         "name": "id",
@@ -649,13 +631,19 @@ export const upfrontAbi = [
   },
   {
     "type": "function",
-    "name": "gracePeriod",
-    "inputs": [],
+    "name": "holdersOf",
+    "inputs": [
+      {
+        "name": "id",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
     "outputs": [
       {
         "name": "",
-        "type": "uint64",
-        "internalType": "uint64"
+        "type": "address[]",
+        "internalType": "address[]"
       }
     ],
     "stateMutability": "view"
@@ -1003,7 +991,7 @@ export const upfrontAbi = [
   },
   {
     "type": "event",
-    "name": "Claimed",
+    "name": "HolderPaid",
     "inputs": [
       {
         "name": "id",
@@ -1471,11 +1459,6 @@ export const upfrontAbi = [
   },
   {
     "type": "error",
-    "name": "GraceNotOver",
-    "inputs": []
-  },
-  {
-    "type": "error",
     "name": "InvalidCap",
     "inputs": []
   },
@@ -1534,11 +1517,6 @@ export const upfrontAbi = [
   {
     "type": "error",
     "name": "NotSeller",
-    "inputs": []
-  },
-  {
-    "type": "error",
-    "name": "NothingToClaim",
     "inputs": []
   },
   {

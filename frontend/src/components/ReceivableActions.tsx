@@ -11,8 +11,6 @@ export type ReceivableAction = {
     | 'verifyReceivable'
     | 'rejectReceivable'
     | 'cancelReceivable'
-    | 'settle'
-    | 'claim'
     | 'markDefault'
   /** Done message, shown after the transaction confirms. */
   done: string

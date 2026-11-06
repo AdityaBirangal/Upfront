@@ -56,29 +56,32 @@ export function unitsLeft(r: Receivable): bigint {
   return r.totalUnits - r.unitsSold
 }
 
-/** Listed or Funded: waiting for the buyer to pay, or for a default. */
+/** Listed or Funded: waiting for the seller to repay, or for a default. */
 export function isAwaitingPayment(r: Receivable): boolean {
   return r.status === 'Listed' || r.status === 'Funded'
 }
 
 /**
- * Same rules as settle: Listed or Funded, and due. Anyone can settle a verified one, but only the
- * buyer an unverified one. `now` is unix seconds, from `useNow`, so buttons appear on time.
+ * Same rules as settle: the seller, Listed or Funded, and before the due date.
+ * `now` is unix seconds, from `useNow`, so buttons disappear on time.
  */
-export function canSettle(r: Receivable, now: bigint, caller?: Address): boolean {
-  const allowed =
-    r.verified || (caller !== undefined && isAddressEqual(caller, r.buyer))
-  return isAwaitingPayment(r) && now >= r.dueDate && allowed
+export function canSettle(r: Receivable, now: bigint, caller: Address): boolean {
+  return isAwaitingPayment(r) && now < r.dueDate && isAddressEqual(caller, r.seller)
 }
 
-/** Same rules as markDefault: Listed or Funded, and the grace period after the due date is over. */
-export function canMarkDefault(r: Receivable, now: bigint, grace: bigint): boolean {
-  return isAwaitingPayment(r) && now > r.dueDate + grace
+/** Same rules as markDefault: Listed or Funded, and the due date has passed. */
+export function canMarkDefault(r: Receivable, now: bigint): boolean {
+  return isAwaitingPayment(r) && now >= r.dueDate
 }
 
-/** Units a holder can claim pay 1 USDT each, once Settled. */
-export function claimValue(units: bigint): bigint {
+/** Each unit repays 1 USDT at settlement. */
+export function unitValue(units: bigint): bigint {
   return units * UNIT
+}
+
+/** What the seller repays at settlement: 1 USDT for every unit sold. Unsold units are burned. */
+export function repayAmount(r: Receivable): bigint {
+  return unitValue(r.unitsSold)
 }
 
 /** Same rules as cancelReceivable: Created or Listed, with no units sold. */

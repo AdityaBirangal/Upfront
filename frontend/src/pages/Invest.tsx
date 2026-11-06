@@ -8,8 +8,7 @@ import HoldingCard from '../components/HoldingCard.tsx'
 import { BACKEND_URL, documentUrl } from '../backend.ts'
 import { useNow } from '../useNow.ts'
 import {
-  useClaims,
-  useGracePeriod,
+  useHolderPayments,
   useInvestments,
   useReceivables,
 } from '../chain.ts'
@@ -55,27 +54,20 @@ function Invest({ wallet }: Props) {
       .filter((investment) => investment.id === id)
       .reduce((sum, investment) => sum + investment.paid, 0n)
 
-  const claims = useClaims({ holder: wallet })
-  const claimFor = (id: bigint) => {
-    const mine = (claims.data ?? []).filter((claim) => claim.id === id)
-    if (mine.length === 0) return undefined
-    return {
-      amount: mine.reduce((sum, claim) => sum + claim.amount, 0n),
-      txHash: mine[mine.length - 1].txHash,
-    }
-  }
+  const payments = useHolderPayments({ holder: wallet })
+  const repaidFor = (id: bigint) =>
+    (payments.data ?? []).find((payment) => payment.id === id)
   const now = useNow()
-  const grace = useGracePeriod()
 
-  // Sellers hold their own units until they sell, so those aren't investments. Claimed units are
-  // burned, so claimed holdings come from Claimed events.
+  // Sellers hold their own units until they sell, so those aren't investments. Settlement burns
+  // units, so repaid holdings come from HolderPaid events.
   const holdings = receivables
     .flatMap((receivable, index) => {
       const units = balances.data?.[index] ?? 0n
-      const claimed = claimFor(receivable.id)
-      return (units > 0n || claimed) &&
+      const repaid = repaidFor(receivable.id)
+      return (units > 0n || repaid) &&
         !isAddressEqual(receivable.seller, wallet)
-        ? [{ receivable, units, claimed }]
+        ? [{ receivable, units, repaid }]
         : []
     })
     .reverse()
@@ -107,8 +99,8 @@ function Invest({ wallet }: Props) {
 
       <h2>Marketplace</h2>
       <p className="hint">
-        Each unit pays 1 USDT when the buyer settles on the due date. You pay
-        less now, so the difference is your return.
+        Each unit pays 1 USDT when the seller repays, before the due date. You
+        pay less now, so the difference is your return.
       </p>
       <ReceivableList
         receivables={listed}
@@ -154,15 +146,14 @@ function Invest({ wallet }: Props) {
         <p>This wallet holds no units yet.</p>
       ) : (
         <ul className="receivable-list">
-          {holdings.map(({ receivable, units, claimed }) => (
+          {holdings.map(({ receivable, units, repaid }) => (
             <HoldingCard
               key={receivable.id}
               receivable={receivable}
               units={units}
               paid={investments.isSuccess ? paidFor(receivable.id) : undefined}
-              claimed={claimed}
+              repaid={repaid}
               now={now}
-              grace={grace}
             />
           ))}
         </ul>

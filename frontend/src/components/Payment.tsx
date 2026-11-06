@@ -1,12 +1,10 @@
-import { useClaims } from '../chain.ts'
+import { useHolderPayments } from '../chain.ts'
 import { explorerTxUrl } from '../contracts.ts'
 import {
   canMarkDefault,
-  claimValue,
   formatDate,
-  formatDuration,
   formatUsdt,
-  isAwaitingPayment,
+  repayAmount,
   shortAddress,
 } from '../receivables.ts'
 import type { Receivable } from '../receivables.ts'
@@ -16,48 +14,33 @@ import ReceivableActions from './ReceivableActions.tsx'
 
 type Props = {
   receivable: Receivable
-  grace: bigint | undefined
 }
 
-/** Settlement state on the detail page: countdown, Mark default, and claims. */
-function Payment({ receivable, grace }: Props) {
+/** Repayment state on the detail page: countdown, Mark default, and what each holder was paid. */
+function Payment({ receivable: r }: Props) {
   const now = useNow()
-  const claims = useClaims({ id: receivable.id })
-  const r = receivable
-  const graceEnd = grace === undefined ? undefined : r.dueDate + grace
-  const defaultable = grace !== undefined && canMarkDefault(r, now, grace)
-
-  const claimedUnits = (claims.data ?? []).reduce((sum, c) => sum + c.units, 0n)
+  const payments = useHolderPayments({ id: r.id })
+  const paid = payments.data ?? []
 
   return (
     <section>
-      <h2>Payment</h2>
-      <p>
-        The buyer owes {formatUsdt(r.faceValue)} USDT on {formatDate(r.dueDate)}.
-        {graceEnd !== undefined && (
-          <>
-            {' '}
-            If it's unpaid, anyone can mark it as defaulted after{' '}
-            {formatDate(graceEnd)} (a {formatDuration(grace ?? 0n)} grace period).
-          </>
-        )}
-      </p>
-
-      {r.status === 'Created' && (
+      <h2>Repayment</h2>
+      {r.status === 'Created' ? (
         <p className="hint">
-          Payment opens once the seller lists it for investors.
+          Repayment opens once the seller lists it for investors.
+        </p>
+      ) : (
+        <p>
+          The seller repays 1 USDT per unit sold by{' '}
+          {formatDate(r.dueDate)}, paying every holder in one transaction. If
+          it isn't repaid by then, anyone can mark it as defaulted.
         </p>
       )}
-      <DueCountdown receivable={r} now={now} grace={grace} />
-      {isAwaitingPayment(r) && now >= r.dueDate && !r.verified && (
-        <p className="hint">
-          It isn't verified, so only the buyer can settle it.
-        </p>
-      )}
+      <DueCountdown receivable={r} now={now} />
       <ReceivableActions
         id={r.id}
         actions={
-          defaultable
+          canMarkDefault(r, now)
             ? [
                 {
                   label: 'Mark default',
@@ -72,33 +55,30 @@ function Payment({ receivable, grace }: Props) {
 
       {r.status === 'Settled' && (
         <p className="badge ok">
-          Settled: the buyer paid {formatUsdt(r.faceValue)} USDT. Each unit
-          claims 1 USDT. {claimedUnits.toLocaleString()} of{' '}
-          {r.totalUnits.toLocaleString()} units claimed so far.
+          Settled: the seller repaid {formatUsdt(repayAmount(r))} USDT to{' '}
+          {paid.length} {paid.length === 1 ? 'holder' : 'holders'}.
         </p>
       )}
       {r.status === 'Defaulted' && (
         <p className="badge warn">
-          Defaulted: the buyer didn't pay by the end of the grace period. Units
-          pay nothing.
+          Defaulted: the seller didn't repay by the due date.
         </p>
       )}
 
-      {(claims.data ?? []).length > 0 && (
+      {paid.length > 0 && (
         <>
-          <h3>Claims</h3>
+          <h3>Holders paid</h3>
           <ul className="plain-list">
-            {(claims.data ?? []).map((claim) => {
-              const url = explorerTxUrl(claim.txHash)
+            {paid.map((payment) => {
+              const url = explorerTxUrl(payment.txHash)
               return (
-                <li key={`${claim.txHash}-${claim.holder}`}>
-                  <code className="address" title={claim.holder}>
-                    {shortAddress(claim.holder)}
+                <li key={`${payment.txHash}-${payment.holder}`}>
+                  <code className="address" title={payment.holder}>
+                    {shortAddress(payment.holder)}
                   </code>{' '}
-                  {claim.holder.toLowerCase() === r.seller.toLowerCase()
-                    ? '(seller) '
-                    : ''}
-                  claimed {formatUsdt(claimValue(claim.units))} USDT
+                  received {formatUsdt(payment.amount)} USDT for{' '}
+                  {payment.units.toLocaleString()}{' '}
+                  {payment.units === 1n ? 'unit' : 'units'}
                   {url && (
                     <>
                       {' '}

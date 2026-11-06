@@ -29,7 +29,7 @@ contract LifecycleForkTest is Test {
         vm.createSelectFork("whitechain_sepolia");
 
         access = new UpfrontAccess(admin);
-        upfront = new Upfront(access, IERC20Metadata(address(USDT)), "", 120);
+        upfront = new Upfront(access, IERC20Metadata(address(USDT)), "");
 
         vm.startPrank(admin);
         access.grantRole(access.SELLER_ROLE(), seller);
@@ -41,7 +41,6 @@ contract LifecycleForkTest is Test {
         vm.startPrank(USDT_HOLDER);
         USDT.safeTransfer(investor, 6e6);
         USDT.safeTransfer(investor2, 4e6);
-        USDT.safeTransfer(buyer, 10e6);
         vm.stopPrank();
 
         vm.startPrank(seller);
@@ -81,42 +80,20 @@ contract LifecycleForkTest is Test {
         vm.prank(buyer);
         upfront.verifyReceivable(id);
 
-        vm.warp(upfront.getReceivable(id).dueDate);
-        vm.startPrank(buyer);
+        vm.prank(USDT_HOLDER);
+        USDT.safeTransfer(seller, 1e6); // covers the yield
+
+        vm.startPrank(seller);
         USDT.safeIncreaseAllowance(address(upfront), 10e6);
+        upfront.settle(id);
         vm.stopPrank();
 
-        // A verified receivable can be settled by anyone.
-        upfront.settle(id);
-        assertEq(USDT.balanceOf(buyer), 0);
-        assertEq(USDT.balanceOf(address(upfront)), 10e6);
-
-        vm.prank(investor);
-        upfront.claim(id);
-        vm.prank(investor2);
-        upfront.claim(id);
-
+        assertEq(USDT.balanceOf(seller), 700_000); // 9.70 raised, 1 top-up, 10 repaid
         assertEq(USDT.balanceOf(investor), 6_180_000);
         assertEq(USDT.balanceOf(investor2), 4_120_000);
         assertEq(USDT.balanceOf(address(upfront)), 0);
         assertEq(upfront.totalSupply(id), 0);
         assertEq(uint8(upfront.getReceivable(id).status), uint8(Status.Settled));
-    }
-
-    function test_DefaultPathWithRealUsdt() public {
-        _approveAndInvest(investor, 6);
-
-        Receivable memory r = upfront.getReceivable(id);
-        vm.warp(uint256(r.dueDate) + 121);
-        upfront.markDefault(id);
-
-        assertEq(uint8(upfront.getReceivable(id).status), uint8(Status.Defaulted));
-        assertEq(USDT.balanceOf(buyer), 10e6);
-        assertEq(upfront.balanceOf(investor, id), 6);
-
-        vm.expectRevert();
-        vm.prank(investor);
-        upfront.claim(id);
     }
 
     function test_FailedInvestMovesNoRealUsdt() public {

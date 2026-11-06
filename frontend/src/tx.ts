@@ -30,10 +30,7 @@ const CONTRACT_ERRORS: Record<string, string> = {
   PartyCannotInvest: "The seller and buyer of a receivable can't invest in it.",
   ERC20InsufficientBalance: "This wallet doesn't have enough USDT.",
   ERC20InsufficientAllowance: 'Approve enough USDT first.',
-  NotDue: "It isn't due yet, so it can't be settled.",
-  GraceNotOver:
-    "The grace period after the due date isn't over, so it can't be marked as defaulted yet.",
-  NothingToClaim: 'This wallet has no units of this receivable to claim.',
+  NotDue: "It isn't due yet, so it can't be marked as defaulted.",
   ZeroAddress: 'An address is missing.',
   AccessControlUnauthorizedAccount: 'Only an admin wallet can change roles.',
   AccessControlBadConfirmation: 'Only the wallet itself can renounce its role.',
