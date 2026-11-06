@@ -341,3 +341,37 @@ fieldset.inline-form .field {
   padding-left: 20px;
 }
 
+
+.countdown {
+  font-variant-numeric: tabular-nums;
+}
+
+.countdown.warn {
+  color: #b54708;
+}
+
+.ok-text {
+  color: #12b76a;
+}
+
+.summary {
+  padding: 4px 16px 16px;
+  border: 1px solid currentColor;
+  border-radius: 8px;
+}
+
+.summary h2 {
+  margin-top: 12px;
+}
+
+.link-button {
+  justify-self: start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 0.9em;
+  text-decoration: underline;
+  cursor: pointer;
+}
