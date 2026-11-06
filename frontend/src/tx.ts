@@ -43,6 +43,9 @@ const CONTRACT_ERRORS: Record<string, string> = {
   ERC1155InsufficientBalance: "This wallet doesn't hold that many units.",
   ERC1155InvalidReceiver: "That wallet can't receive units.",
   ZeroAddress: 'An address is missing.',
+  NullifierAlreadyUsed: 'This person already has an investor wallet.',
+  VoucherExpired: 'This verification has expired. Verify again.',
+  BadSignature: "This verification isn't valid for this wallet. Verify again.",
   AccessControlUnauthorizedAccount: 'Only an admin wallet can change roles.',
   AccessControlBadConfirmation: 'Only the wallet itself can renounce its role.',
 }

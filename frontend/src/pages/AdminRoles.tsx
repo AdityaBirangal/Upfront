@@ -20,7 +20,7 @@ import PageHeader from '@/components/PageHeader.tsx'
 import Section from '@/components/Section.tsx'
 import TxStatus from '@/components/TxStatus.tsx'
 import { useRoleMembers, useRoles } from '@/chain.ts'
-import { ROLE_IDS, access } from '@/contracts.ts'
+import { ROLE_IDS, access, gate } from '@/contracts.ts'
 import { shortAddress } from '@/receivables.ts'
 import { ROLES, WALLET_ADDRESS } from '@/roles.ts'
 import type { Assignment, Role } from '@/roles.ts'
@@ -70,7 +70,14 @@ function AssignmentRow({ assignment, disabledReason }: RowProps) {
     <li className="px-4 py-3">
       <div className="flex flex-wrap items-center gap-3">
         <Identicon address={assignment.address} />
-        <Address address={assignment.address} className="min-w-0 flex-1" />
+        <div className="min-w-0 flex-1">
+          <Address address={assignment.address} />
+          {gate && isAddressEqual(assignment.address, gate.address) && (
+            <p className="text-muted-foreground mt-0.5 text-xs">
+              InvestorGate contract. Revoking it stops World ID joins.
+            </p>
+          )}
+        </div>
         <span className="bg-secondary text-secondary-foreground rounded-full px-2.5 py-0.5 text-xs font-medium">
           {assignment.role}
         </span>

@@ -8,7 +8,7 @@ pays every investor.
 
 - **Live app:** https://upfront.web.app
 - **Demo video:** VIDEO_LINK
-- **Built at:** ETHGlobal Mumbai 2026, for Whitechain Tokenize
+- **Built at:** ETHGlobal Mumbai 2026, for Whitechain Tokenize and World ID
 
 ## The problem
 
@@ -48,6 +48,7 @@ that idea to large project contracts, with onchain settlement and resale between
    transaction pays 1 USDT per unit to whoever holds the units.
 
 An **Admin** approves who can take part, but can't move funds or change an existing receivable.
+Investors can also [join by themselves with World ID](#how-we-used-world-id), once per human.
 
 | | The pitch | Testnet demo |
 |---|---|---|
@@ -61,6 +62,8 @@ flowchart LR
   B[Buyer] -- verify --> U
   I[Investors] -- invest --> U
   A[Admin] -- grant roles --> R[UpfrontAccess]
+  W[Verified human] -- World ID voucher --> G[InvestorGate]
+  G -- Investor role --> R
   R -- who may act --> U
   U <-- USDT --> T[USDT on Whitechain]
   S -- PDF --> D[Backend: documents]
@@ -72,9 +75,9 @@ down.
 
 ## How we used Whitechain
 
-Everything settles in real test USDT on Whitechain Sepolia (chain ID 1874), through two verified smart
-contracts: [`UpfrontAccess.sol`](contracts/src/UpfrontAccess.sol) and
-[`Upfront.sol`](contracts/src/Upfront.sol).
+Everything settles in real test USDT on Whitechain Sepolia (chain ID 1874), through verified smart
+contracts: [`UpfrontAccess.sol`](contracts/src/UpfrontAccess.sol),
+[`Upfront.sol`](contracts/src/Upfront.sol), and [`InvestorGate.sol`](contracts/src/InvestorGate.sol).
 
 **Why this needs onchain stablecoin settlement on Whitechain:** Selling units needs the right to
 repayment and the money to change hands at the same moment, and repayment must reach whoever holds the
@@ -86,9 +89,47 @@ can.
 |---|---|
 | `UpfrontAccess` | [`0x7f8dF0d47e0265Df7E1f8AF1d091757B193cECd2`](https://explorer.testnet.whitechain.io/address/0x7f8dF0d47e0265Df7E1f8AF1d091757B193cECd2) |
 | `Upfront` | [`0x50eD2278EBCAA43eE213596881157a80e5041BC9`](https://explorer.testnet.whitechain.io/address/0x50eD2278EBCAA43eE213596881157a80e5041BC9) |
+| `InvestorGate` | [`0x5d008711c2301AE2C1cC45c4667971db02AD5292`](https://explorer.testnet.whitechain.io/address/0x5d008711c2301AE2C1cC45c4667971db02AD5292) |
 
-**USDT settlement:** [one transaction paying both investors](https://explorer.testnet.whitechain.io/tx/0x43cbea02dd197d9293a21e2b5e677a84eac77a141ea746a6e47776e1c728f072).
+**USDT settlement:** [https://explorer.testnet.whitechain.io/tx/0x43cbea02dd197d9293a21e2b5e677a84eac77a141ea746a6e47776e1c728f072](https://explorer.testnet.whitechain.io/tx/0x43cbea02dd197d9293a21e2b5e677a84eac77a141ea746a6e47776e1c728f072).
 Every step of that run is linked in [`DEMO_TXS.md`](DEMO_TXS.md).
+
+## How we used World ID
+
+**The trust moment: can this wallet join as an investor?** Each receivable caps how much one investor
+can hold, so large deals stay spread across many people. That cap is per wallet, so without a check, one
+person could use several wallets to get around it.
+
+**Why Proof of Human is the minimum:** the cap needs to know this is one person, not who they are. We
+don't need a name, age, or nationality, so Proof of Human is enough, and the investor shares nothing
+else.
+
+**How it works:** World ID has no verifier on Whitechain, so the proof is checked offchain and the
+one-human rule is enforced onchain.
+
+1. The wallet opens IDKit with the `proofOfHuman` preset, and the wallet address is the signal.
+2. The backend confirms the proof is for this wallet, this action, and Proof of Human, then verifies it
+   with World's API.
+3. The backend signs a short-lived voucher for that wallet. It sends no transactions and holds no funds.
+4. The wallet calls [`InvestorGate.join`](contracts/src/InvestorGate.sol). The gate checks the voucher,
+   refuses a nullifier it has seen, and grants the Investor role.
+
+| Path | Result |
+|---|---|
+| Verified human, first wallet | Joins as an investor, with no Admin involved |
+| Same human, second wallet | Refused: "This person already has an investor wallet" |
+| Verification cancelled | The wallet still can't invest |
+| Wallet that never verified | Can't invest, and can ask an Admin instead |
+
+World ID is optional. Without it the app works as before, and an Admin can still grant the role.
+
+**Limits:** the demo uses World's simulator, so its proofs are staging proofs, not real humans. Whitechain
+can't check the proof itself, so the gate trusts the backend's signing key: if that key leaked, someone
+could add fake investors, but couldn't touch funds or any other role. The gate must be an admin of
+`UpfrontAccess`, because that's the only role that can grant `INVESTOR_ROLE`. It's safe because `join` is
+its only function that changes anything, and it can't be upgraded.
+
+[Our notes for World](WORLD_FEEDBACK.md) cover how integration went.
 
 ## Rules enforced by the smart contracts
 
@@ -105,7 +146,7 @@ Every step of that run is linked in [`DEMO_TXS.md`](DEMO_TXS.md).
 | Buyer verification | Only the named buyer can set the Verified tag, and it can't be undone |
 
 Every transfer passes through one check in `_update`, so batches and approved operators follow the same
-rules. The tests cover 100% of lines in both smart contracts.
+rules. The tests cover 100% of lines in `Upfront` and `UpfrontAccess`.
 
 ## What the Admin can and can't do
 
@@ -126,7 +167,8 @@ and create a new receivable, but that touches nobody else's money.
   holder who can't receive USDT would stop it. Production would use batches and a fallback claim.
 - There's no late payment: after the due date, the seller can't settle. Freeze, KYB expiry, and pause
   aren't built.
-- The cap is per wallet, so one person with two approved wallets can hold twice as much.
+- The cap is per wallet. World ID stops one human joining twice through the gate, but "one human, one
+  wallet" doesn't cover wallets an Admin added by hand.
 - Document uniqueness is exact-file only, so the buyer's review is the real check.
 - Documents are stored by our backend and are public to anyone with the hash, so the demo uses sample
   agreements only.
@@ -157,6 +199,9 @@ cd ../frontend && npm install && cp .env.example .env && npm run dev
 
 The local deploy uses mock USDT and anvil's default accounts. Account 0 is Admin, 1 Seller, 2 Buyer,
 3 and 4 Investors, and 5 the Outsider.
+
+World ID stays off locally until you set the `WORLD_*` values and keys in `backend/.env` and
+`VITE_WORLD_*` in `frontend/.env`. See the `.env.example` files.
 
 ### Getting test USDT on Whitechain Sepolia
 

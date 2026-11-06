@@ -31,6 +31,15 @@ forge script script/DeployLocal.s.sol --rpc-url http://127.0.0.1:8545 --broadcas
 
 Set `GRANT_ROLES=false` on that command to start with no roles, for testing the Admin page.
 
+Deploy `InvestorGate` beside the existing contracts, from an admin wallet. `GATE_SIGNER` is the address
+of the backend's `GATE_SIGNER_KEY`, which can't be changed afterwards:
+
+```bash
+ACCESS_ADDRESS=<UpfrontAccess> GATE_SIGNER=<address> \
+forge script script/DeployGate.s.sol --rpc-url whitechain_sepolia --account upfront-admin --broadcast \
+  --verify --verifier blockscout --verifier-url https://explorer.testnet.whitechain.io/api/
+```
+
 Run the demo flow on the newest Whitechain Sepolia deployment, using the `upfront-*` keystores:
 
 ```bash
