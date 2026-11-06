@@ -6,7 +6,7 @@ import { deployments } from '../generated/deployments.js';
 
 const RPC_TIMEOUT_MS = 3_000;
 
-type Deployment = { upfront?: Address; access?: Address };
+type Deployment = { upfront?: Address; access?: Address; gate?: Address };
 type ChainEntry = { versions: Record<string, Deployment> };
 
 // The highest version deployed on this chain that has the given contract.

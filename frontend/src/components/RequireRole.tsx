@@ -6,7 +6,9 @@ import { useConnection } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { useRoles } from '@/chain.ts'
 import type { Role } from '@/roles.ts'
+import { worldEnabled } from '@/world.ts'
 import ErrorNote from './ErrorNote.tsx'
+import JoinWithWorld from './JoinWithWorld.tsx'
 import { ConnectButton } from './WalletMenu.tsx'
 
 type Props = {
@@ -50,6 +52,9 @@ function RequireRole({ role, children }: Props) {
   } else {
     body = (
       <>
+        {role === 'Investor' && worldEnabled && address && (
+          <JoinWithWorld key={address} wallet={address} />
+        )}
         <p className="text-muted-foreground text-sm">
           This wallet doesn’t have the {role} role. An admin can assign it on the Roles page.
         </p>

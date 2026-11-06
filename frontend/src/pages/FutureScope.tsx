@@ -30,7 +30,7 @@ const PLANS: { id: string; icon: LucideIcon; eyebrow: string; title: string; led
     icon: BadgeCheck,
     eyebrow: '03 · KYC / KYB',
     title: 'Verified with World ID',
-    lede: 'Today an admin grants roles by hand. Next, sellers, clients and investors verify with World ID before their wallet gets a role.',
+    lede: 'Investors can already join with World ID. Next, sellers and clients verify too, so no wallet needs an admin to grant its role.',
     stat: 'World ID',
     statLabel: 'replaces manual approval',
   },

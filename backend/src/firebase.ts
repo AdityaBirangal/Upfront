@@ -35,6 +35,7 @@ export const api = onRequest(
     memory: '512MiB',
     maxInstances: 5,
     invoker: 'public',
+    secrets: ['GATE_SIGNER_KEY', 'RP_SIGNING_KEY'],
   },
   async (request, response) => {
     await boot();
