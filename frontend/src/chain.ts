@@ -86,6 +86,21 @@ export type Investment = {
   blockNumber: bigint
 }
 
+/** Splits deploy block → latest into ranges the RPC accepts, and reads each in parallel. */
+async function readInChunks<T>(
+  client: NonNullable<ReturnType<typeof usePublicClient>>,
+  read: (fromBlock: bigint, toBlock: bigint) => Promise<T[]>,
+): Promise<T[]> {
+  const latest = await client.getBlockNumber()
+  const ranges: [bigint, bigint][] = []
+  for (let from = DEPLOY_BLOCK; from <= latest; from += LOG_BLOCK_RANGE) {
+    const to = from + LOG_BLOCK_RANGE - 1n
+    ranges.push([from, to < latest ? to : latest])
+  }
+  const chunks = await Promise.all(ranges.map(([from, to]) => read(from, to)))
+  return chunks.flat()
+}
+
 /** Every `invest` since deployment, optionally for one receivable or one investor. Oldest first. */
 export function useInvestments(filter: { id?: bigint; investor?: Address }) {
   const client = usePublicClient({ chainId: upfront.chainId })
@@ -96,25 +111,17 @@ export function useInvestments(filter: { id?: bigint; investor?: Address }) {
     enabled: Boolean(client),
     queryFn: async (): Promise<Investment[]> => {
       if (!client) return []
-      const latest = await client.getBlockNumber()
-      const ranges: [bigint, bigint][] = []
-      for (let from = DEPLOY_BLOCK; from <= latest; from += LOG_BLOCK_RANGE) {
-        const to = from + LOG_BLOCK_RANGE - 1n
-        ranges.push([from, to < latest ? to : latest])
-      }
-      const chunks = await Promise.all(
-        ranges.map(([fromBlock, toBlock]) =>
-          client.getContractEvents({
-            address: upfront.address,
-            abi: upfront.abi,
-            eventName: 'Invested',
-            args: { id, investor },
-            fromBlock,
-            toBlock,
-          }),
-        ),
+      const logs = await readInChunks(client, (fromBlock, toBlock) =>
+        client.getContractEvents({
+          address: upfront.address,
+          abi: upfront.abi,
+          eventName: 'Invested',
+          args: { id, investor },
+          fromBlock,
+          toBlock,
+        }),
       )
-      return chunks.flat().map((log) => ({
+      return logs.map((log) => ({
         id: log.args.id ?? 0n,
         investor: log.args.investor ?? zeroAddress,
         units: log.args.units ?? 0n,
@@ -124,4 +131,49 @@ export function useInvestments(filter: { id?: bigint; investor?: Address }) {
       }))
     },
   })
+}
+
+export type Claim = {
+  id: bigint
+  holder: Address
+  units: bigint
+  amount: bigint
+  txHash: Hash
+}
+
+/** Every `claim` since deployment, optionally for one receivable or one holder. Oldest first. */
+export function useClaims(filter: { id?: bigint; holder?: Address }) {
+  const client = usePublicClient({ chainId: upfront.chainId })
+  const { id, holder } = filter
+
+  return useQuery({
+    queryKey: ['claims', upfront.address, id?.toString(), holder],
+    enabled: Boolean(client),
+    queryFn: async (): Promise<Claim[]> => {
+      if (!client) return []
+      const logs = await readInChunks(client, (fromBlock, toBlock) =>
+        client.getContractEvents({
+          address: upfront.address,
+          abi: upfront.abi,
+          eventName: 'Claimed',
+          args: { id, holder },
+          fromBlock,
+          toBlock,
+        }),
+      )
+      return logs.map((log) => ({
+        id: log.args.id ?? 0n,
+        holder: log.args.holder ?? zeroAddress,
+        units: log.args.units ?? 0n,
+        amount: log.args.amount ?? 0n,
+        txHash: log.transactionHash,
+      }))
+    },
+  })
+}
+
+/** Seconds after the due date before anyone can mark an unpaid receivable as defaulted. */
+export function useGracePeriod() {
+  const read = useReadContract({ ...upfront, functionName: 'gracePeriod' })
+  return read.data === undefined ? undefined : BigInt(read.data)
 }

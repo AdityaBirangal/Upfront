@@ -8,9 +8,10 @@ import { readContract, simulateContract, writeContract } from 'wagmi/actions'
 import ListForm from '../components/ListForm.tsx'
 import ReceivableActions from '../components/ReceivableActions.tsx'
 import ReceivableList from '../components/ReceivableList.tsx'
+import SellerPayout from '../components/SellerPayout.tsx'
 import TxStatus from '../components/TxStatus.tsx'
 import { BACKEND_URL, uploadDocument } from '../backend.ts'
-import { useReceivables } from '../chain.ts'
+import { useClaims, useGracePeriod, useReceivables } from '../chain.ts'
 import { ROLE_IDS, access, upfront } from '../contracts.ts'
 import {
   WHOLE_NUMBER,
@@ -20,11 +21,25 @@ import {
 } from '../receivables.ts'
 import { WALLET_ADDRESS } from '../roles.ts'
 import { useTx } from '../tx.ts'
+import { useNow } from '../useNow.ts'
 import { config } from '../wagmi.ts'
 
 const SAMPLE_PDF = 'sample-agreement.pdf'
 
 type Step = 'idle' | 'active' | 'done' | 'failed'
+
+// datetime-local wants local time as YYYY-MM-DDTHH:mm.
+function localInputValue(date: Date) {
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
+  return local.toISOString().slice(0, 16)
+}
+
+/** Ten whole minutes from now, rounded up to the minute the input can show. */
+function tenMinutesFromNow() {
+  const date = new Date(Date.now() + 10 * 60_000)
+  date.setSeconds(60, 0)
+  return localInputValue(date)
+}
 
 // PDF readers ignore a comment after the end, so this gives the sample a new hash.
 function demoCopyLine() {
@@ -55,6 +70,23 @@ function Seller({ wallet }: Props) {
   const mine = receivables
     .filter((r) => isAddressEqual(r.seller, wallet))
     .reverse()
+  const now = useNow()
+  const grace = useGracePeriod()
+  const claims = useClaims({ holder: wallet })
+  const held = useReadContract({
+    ...upfront,
+    functionName: 'balanceOfBatch',
+    args: [mine.map(() => wallet), mine.map((r) => r.id)],
+    query: { enabled: mine.length > 0 },
+  })
+  const heldUnits = (id: bigint) => {
+    const index = mine.findIndex((r) => r.id === id)
+    return held.data?.[index]
+  }
+  const claimedFor = (id: bigint) =>
+    (claims.data ?? [])
+      .filter((claim) => claim.id === id)
+      .reduce((sum, claim) => sum + claim.amount, 0n)
   const busy = checking || upload === 'active' || tx.busy
 
   function selectDocument(event: ChangeEvent<HTMLInputElement>) {
@@ -244,15 +276,24 @@ function Seller({ wallet }: Props) {
               autoComplete="off"
             />
           </label>
-          <label className="field">
-            Due date and time
-            <input
-              className="input"
-              type="datetime-local"
-              value={dueDate}
-              onChange={(event) => setDueDate(event.target.value)}
-            />
-          </label>
+          <div className="field">
+            <label className="field">
+              Due date and time
+              <input
+                className="input"
+                type="datetime-local"
+                value={dueDate}
+                onChange={(event) => setDueDate(event.target.value)}
+              />
+            </label>
+            <button
+              type="button"
+              className="link-button"
+              onClick={() => setDueDate(tenMinutesFromNow())}
+            >
+              Due in 10 minutes (demo shortcut)
+            </button>
+          </div>
           <div className="field-wide file-row">
             <label className="field">
               Agreement PDF
@@ -322,6 +363,13 @@ function Seller({ wallet }: Props) {
         extra={(receivable) => (
           <>
             <ListForm receivable={receivable} />
+            <SellerPayout
+              receivable={receivable}
+              held={heldUnits(receivable.id)}
+              claimed={claimedFor(receivable.id)}
+              now={now}
+              grace={grace}
+            />
             <ReceivableActions
               id={receivable.id}
               actions={

@@ -7,7 +7,13 @@ import TxStatus from './TxStatus.tsx'
 
 export type ReceivableAction = {
   label: string
-  functionName: 'verifyReceivable' | 'rejectReceivable' | 'cancelReceivable'
+  functionName:
+    | 'verifyReceivable'
+    | 'rejectReceivable'
+    | 'cancelReceivable'
+    | 'settle'
+    | 'claim'
+    | 'markDefault'
   /** Done message, shown after the transaction confirms. */
   done: string
   /** Asks before sending, for actions that can't be undone. */

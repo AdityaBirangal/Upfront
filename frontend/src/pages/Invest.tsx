@@ -4,13 +4,17 @@ import type { Address } from 'viem'
 import { useReadContract, useReadContracts } from 'wagmi'
 import BuyForm from '../components/BuyForm.tsx'
 import ReceivableList from '../components/ReceivableList.tsx'
-import StatusBadge from '../components/StatusBadge.tsx'
-import VerifiedTag from '../components/VerifiedTag.tsx'
+import HoldingCard from '../components/HoldingCard.tsx'
 import { BACKEND_URL, documentUrl } from '../backend.ts'
-import { useInvestments, useReceivables } from '../chain.ts'
+import { useNow } from '../useNow.ts'
+import {
+  useClaims,
+  useGracePeriod,
+  useInvestments,
+  useReceivables,
+} from '../chain.ts'
 import { upfront, usdt } from '../contracts.ts'
 import {
-  UNIT,
   formatUsdt,
   returnPercent,
   timeToDue,
@@ -51,13 +55,30 @@ function Invest({ wallet }: Props) {
       .filter((investment) => investment.id === id)
       .reduce((sum, investment) => sum + investment.paid, 0n)
 
-  // Sellers hold their own units until they sell, so those aren't investments.
-  const holdings = receivables.flatMap((receivable, index) => {
-    const units = balances.data?.[index] ?? 0n
-    return units > 0n && !isAddressEqual(receivable.seller, wallet)
-      ? [{ receivable, units }]
-      : []
-  })
+  const claims = useClaims({ holder: wallet })
+  const claimFor = (id: bigint) => {
+    const mine = (claims.data ?? []).filter((claim) => claim.id === id)
+    if (mine.length === 0) return undefined
+    return {
+      amount: mine.reduce((sum, claim) => sum + claim.amount, 0n),
+      txHash: mine[mine.length - 1].txHash,
+    }
+  }
+  const now = useNow()
+  const grace = useGracePeriod()
+
+  // Sellers hold their own units until they sell, so those aren't investments. Claimed units are
+  // burned, so claimed holdings come from Claimed events.
+  const holdings = receivables
+    .flatMap((receivable, index) => {
+      const units = balances.data?.[index] ?? 0n
+      const claimed = claimFor(receivable.id)
+      return (units > 0n || claimed) &&
+        !isAddressEqual(receivable.seller, wallet)
+        ? [{ receivable, units, claimed }]
+        : []
+    })
+    .reverse()
 
   return (
     <main className="panel">
@@ -133,42 +154,17 @@ function Invest({ wallet }: Props) {
         <p>This wallet holds no units yet.</p>
       ) : (
         <ul className="receivable-list">
-          {holdings.map(({ receivable, units }) => {
-            const paid = paidFor(receivable.id)
-            const payout = units * UNIT
-            return (
-              <li key={receivable.id} className="receivable">
-                <div className="receivable-head">
-                  <strong>
-                    #{receivable.id.toString()} · {receivable.ref}
-                  </strong>
-                  <span className="tags">
-                    <StatusBadge status={receivable.status} />
-                    <VerifiedTag verified={receivable.verified} />
-                  </span>
-                </div>
-                <p>
-                  {units.toLocaleString()} {units === 1n ? 'unit' : 'units'} ·
-                  Paid{' '}
-                  {investments.isPending
-                    ? '…'
-                    : investments.isError
-                      ? 'unknown'
-                      : `${formatUsdt(paid)} USDT`}{' '}
-                  · Expected payout {formatUsdt(payout)} USDT
-                  {investments.isSuccess && paid > 0n && payout > paid
-                    ? ` (+${formatUsdt(payout - paid)} USDT)`
-                    : ''}
-                </p>
-                <p>{timeToDue(receivable.dueDate)}</p>
-                <p>
-                  <Link to={`/app/receivable/${receivable.id}`}>
-                    View details
-                  </Link>
-                </p>
-              </li>
-            )
-          })}
+          {holdings.map(({ receivable, units, claimed }) => (
+            <HoldingCard
+              key={receivable.id}
+              receivable={receivable}
+              units={units}
+              paid={investments.isSuccess ? paidFor(receivable.id) : undefined}
+              claimed={claimed}
+              now={now}
+              grace={grace}
+            />
+          ))}
         </ul>
       )}
     </main>

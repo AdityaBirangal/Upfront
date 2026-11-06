@@ -1,5 +1,5 @@
-import { formatUnits } from 'viem'
-import type { ContractFunctionReturnType, Hex } from 'viem'
+import { formatUnits, isAddressEqual } from 'viem'
+import type { Address, ContractFunctionReturnType, Hex } from 'viem'
 import { upfrontAbi } from './generated/abis.ts'
 
 // Matched by position with the contract's Status enum, so the order must stay the same.
@@ -54,6 +54,31 @@ export function canInvest(r: Receivable): boolean {
 
 export function unitsLeft(r: Receivable): bigint {
   return r.totalUnits - r.unitsSold
+}
+
+/** Listed or Funded: waiting for the buyer to pay, or for a default. */
+export function isAwaitingPayment(r: Receivable): boolean {
+  return r.status === 'Listed' || r.status === 'Funded'
+}
+
+/**
+ * Same rules as settle: Listed or Funded, and due. Anyone can settle a verified one, but only the
+ * buyer an unverified one. `now` is unix seconds, from `useNow`, so buttons appear on time.
+ */
+export function canSettle(r: Receivable, now: bigint, caller?: Address): boolean {
+  const allowed =
+    r.verified || (caller !== undefined && isAddressEqual(caller, r.buyer))
+  return isAwaitingPayment(r) && now >= r.dueDate && allowed
+}
+
+/** Same rules as markDefault: Listed or Funded, and the grace period after the due date is over. */
+export function canMarkDefault(r: Receivable, now: bigint, grace: bigint): boolean {
+  return isAwaitingPayment(r) && now > r.dueDate + grace
+}
+
+/** Units a holder can claim pay 1 USDT each, once Settled. */
+export function claimValue(units: bigint): bigint {
+  return units * UNIT
 }
 
 /** Same rules as cancelReceivable: Created or Listed, with no units sold. */
@@ -147,4 +172,16 @@ export function timeToDue(dueDate: bigint): string {
   if (hours >= 1) return `${hours} ${hours === 1 ? 'hour' : 'hours'} to due date`
   const minutes = Math.max(1, Math.floor(seconds / 60))
   return `${minutes} ${minutes === 1 ? 'minute' : 'minutes'} to due date`
+}
+
+/** A short countdown like "2d 4h", "3h 12m" or "4m 05s". */
+export function formatDuration(totalSeconds: bigint): string {
+  const seconds = Number(totalSeconds > 0n ? totalSeconds : 0n)
+  const days = Math.floor(seconds / 86_400)
+  const hours = Math.floor((seconds % 86_400) / 3600)
+  const minutes = Math.floor((seconds % 3600) / 60)
+  const secs = seconds % 60
+  if (days > 0) return `${days}d ${hours}h`
+  if (hours > 0) return `${hours}h ${minutes}m`
+  return `${minutes}m ${secs.toString().padStart(2, '0')}s`
 }
