@@ -1,20 +1,38 @@
-import { Coins, ShieldCheck } from 'lucide-react'
+import { BadgeCheck, Coins, ShieldCheck } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import SiteFooter from '@/components/layout/SiteFooter.tsx'
 import Guilloche from '@/components/landing/Guilloche.tsx'
 import LandingHeader from '@/components/landing/LandingHeader.tsx'
-import { Eyebrow, WRAP } from '@/components/landing/kit.tsx'
+import { Eyebrow, SectionHead, WRAP } from '@/components/landing/kit.tsx'
+import { cn } from '@/lib/utils'
 
-const PLANS: { icon: LucideIcon; title: string; body: string }[] = [
+const PLANS: { id: string; icon: LucideIcon; eyebrow: string; title: string; lede: string; stat: string; statLabel: string }[] = [
   {
+    id: 'fee',
     icon: Coins,
-    title: 'Fee collection',
-    body: 'Upfront takes 0.5% of the money raised, paid by the seller when a receivable is funded.',
+    eyebrow: '01 · Fee collection',
+    title: 'Upfront earns when a deal funds',
+    lede: 'A 0.5% fee on the money raised, paid by the seller when a receivable is funded. Investors pay only the unit price.',
+    stat: '0.5%',
+    statLabel: 'of every raise',
   },
   {
+    id: 'insurance',
     icon: ShieldCheck,
-    title: 'Protection pool',
-    body: 'Every raise adds another 0.5% to a pool. If a seller defaults, the pool repays that receivable’s investors.',
+    eyebrow: '02 · Insurance',
+    title: 'If a seller defaults, investors still get paid',
+    lede: 'Every raise adds another 0.5% to an insurance pool held by the contract. If a seller misses the due date, the pool repays that receivable’s investors.',
+    stat: '0.5%',
+    statLabel: 'into the pool, per raise',
+  },
+  {
+    id: 'kyc',
+    icon: BadgeCheck,
+    eyebrow: '03 · KYC / KYB',
+    title: 'Verified with World ID',
+    lede: 'Today an admin grants roles by hand. Next, sellers, clients and investors verify with World ID before their wallet gets a role.',
+    stat: 'World ID',
+    statLabel: 'replaces manual approval',
   },
 ]
 
@@ -24,27 +42,31 @@ function FutureScope() {
       <LandingHeader />
 
       <main className="flex-1">
-        <section className="relative overflow-hidden">
+        <section className="relative overflow-hidden border-b">
           <Guilloche className="pointer-events-none absolute -top-48 -right-48 size-[44rem] opacity-[0.12]" />
-          <div className={`${WRAP} relative flex flex-col items-start gap-7 py-20 md:py-28`}>
+          <div className={`${WRAP} relative flex flex-col items-start gap-6 py-20 md:py-28`}>
             <Eyebrow>Future scope</Eyebrow>
             <h1 className="max-w-3xl text-[2.5rem] leading-[1.04] font-semibold tracking-[-0.045em] text-balance sm:text-6xl">
-              If a seller doesn’t pay, <span className="text-muted-foreground">investors still get paid.</span>
+              What’s coming <span className="text-muted-foreground">next.</span>
             </h1>
-            <ul className="mt-4 grid w-full max-w-3xl gap-4 sm:grid-cols-2">
-              {PLANS.map(({ icon: Icon, title, body }) => (
-                <li key={title} className="bg-card flex flex-col gap-3 rounded-2xl border p-6 shadow-xs">
-                  <Icon className="text-primary size-5" aria-hidden />
-                  <h2 className="font-semibold tracking-[-0.01em]">{title}</h2>
-                  <p className="text-muted-foreground text-sm leading-relaxed">{body}</p>
-                </li>
-              ))}
-            </ul>
           </div>
         </section>
+
+        {PLANS.map(({ id, icon: Icon, eyebrow, title, lede, stat, statLabel }, i) => (
+          <section key={id} aria-labelledby={id} className={cn('border-b', i % 2 === 1 && 'bg-muted/40')}>
+            <div className={`${WRAP} grid gap-10 py-20 md:py-24 lg:grid-cols-[minmax(0,7fr)_minmax(0,4fr)] lg:items-center lg:gap-16`}>
+              <SectionHead id={id} eyebrow={eyebrow} title={title} lede={lede} />
+              <div className="bg-card flex flex-col gap-3 rounded-2xl border p-6 shadow-xs md:p-8">
+                <Icon className="text-primary size-6" aria-hidden />
+                <p className="tabular text-4xl font-semibold tracking-[-0.035em]">{stat}</p>
+                <p className="text-muted-foreground text-sm">{statLabel}</p>
+              </div>
+            </div>
+          </section>
+        ))}
       </main>
 
-      <SiteFooter />
+      <SiteFooter className="border-t-0" />
     </div>
   )
 }

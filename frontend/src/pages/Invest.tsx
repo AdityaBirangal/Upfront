@@ -11,13 +11,12 @@ import EmptyState from '@/components/EmptyState.tsx'
 import ErrorNote from '@/components/ErrorNote.tsx'
 import HoldingRow from '@/components/HoldingRow.tsx'
 import PageHeader from '@/components/PageHeader.tsx'
-import Section from '@/components/Section.tsx'
-import TransferForm from '@/components/TransferForm.tsx'
-import ReceivableList from '@/components/ReceivableList.tsx'
+import PortfolioOverview from '@/components/portfolio/PortfolioOverview.tsx'
+import ReceivableTable from '@/components/ReceivableTable.tsx'
+import { MARKET_COLUMNS, MarketRow } from '@/components/ReceivableRows.tsx'
 import Usdt from '@/components/Usdt.tsx'
 import { useHolderPayments, useInvestments, useReceivables } from '@/chain.ts'
 import { upfront, usdt } from '@/contracts.ts'
-import { unitValue } from '@/receivables.ts'
 import { useNow } from '@/useNow.ts'
 
 type Props = {
@@ -77,17 +76,6 @@ function Invest({ wallet }: Props) {
     })
     .reverse()
 
-  const totals = holdings.reduce(
-    (sum, { receivable, units, repaid }) => {
-      const paid = paidFor(receivable.id)
-      sum.invested += paid
-      if (repaid) sum.realised += repaid.amount - paid
-      else if (receivable.status !== 'Defaulted') sum.expected += unitValue(units)
-      return sum
-    },
-    { invested: 0n, expected: 0n, realised: 0n },
-  )
-
   const holdingsPending = isPending || (receivables.length > 0 && balances.isPending)
 
   return (
@@ -137,23 +125,30 @@ function Invest({ wallet }: Props) {
               </Tabs>
             </div>
           )}
-          <ReceivableList
+          <ReceivableTable
+            label="Listed receivables"
             receivables={listed}
             isPending={isPending}
             isError={isError}
-            party="seller"
-            columns={2}
+            columns={MARKET_COLUMNS}
             empty={{
               title: 'Nothing is listed right now',
               body: 'Listed receivables appear here as soon as a seller lists one.',
             }}
-            extra={(receivable) => (
-              <BuyForm
-                receivable={receivable}
-                wallet={wallet}
-                held={held(receivable.id)}
-                balance={usdtBalance}
-                allowance={allowance}
+            row={(receivable) => (
+              <MarketRow
+                key={receivable.id}
+                r={receivable}
+                now={now}
+                buy={
+                  <BuyForm
+                    receivable={receivable}
+                    wallet={wallet}
+                    held={held(receivable.id)}
+                    balance={usdtBalance}
+                    allowance={allowance}
+                  />
+                }
               />
             )}
           />
@@ -186,26 +181,15 @@ function Invest({ wallet }: Props) {
             </EmptyState>
           ) : (
             <>
-              <dl className="bg-card grid grid-cols-1 divide-y rounded-xl border sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-                <div className="px-5 py-4">
-                  <dt className="text-muted-foreground text-xs">Invested</dt>
-                  <dd className="mt-1 text-lg font-semibold">
-                    {investments.isSuccess ? <Usdt value={totals.invested} /> : '…'}
-                  </dd>
-                </div>
-                <div className="px-5 py-4">
-                  <dt className="text-muted-foreground text-xs">Expected payout</dt>
-                  <dd className="mt-1 text-lg font-semibold">
-                    <Usdt value={totals.expected} />
-                  </dd>
-                </div>
-                <div className="px-5 py-4">
-                  <dt className="text-muted-foreground text-xs">Profit realised</dt>
-                  <dd className="text-state-settled mt-1 text-lg font-semibold">
-                    {investments.isSuccess ? <Usdt value={totals.realised} signed /> : '…'}
-                  </dd>
-                </div>
-              </dl>
+              <PortfolioOverview
+                wallet={wallet}
+                holdings={holdings}
+                receivables={receivables}
+                investments={investments.data ?? []}
+                payments={payments.data ?? []}
+                now={now}
+              />
+              <h3 className="mt-2 font-semibold tracking-tight">Holdings</h3>
               <div className="bg-card rounded-xl border">
                 <Table>
                   <TableHeader>
@@ -233,17 +217,6 @@ function Invest({ wallet }: Props) {
                   </TableBody>
                 </Table>
               </div>
-              {holdings.some(({ units }) => units > 0n) && (
-                <Section
-                  title="Transfer units"
-                  description="Send units you hold to another wallet. The smart contract checks the transfer rules."
-                >
-                  <TransferForm
-                    wallet={wallet}
-                    holdings={holdings.filter(({ units }) => units > 0n)}
-                  />
-                </Section>
-              )}
             </>
           )}
         </TabsContent>

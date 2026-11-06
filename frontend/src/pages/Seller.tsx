@@ -13,7 +13,8 @@ import ErrorNote from '@/components/ErrorNote.tsx'
 import ListForm from '@/components/ListForm.tsx'
 import PageHeader from '@/components/PageHeader.tsx'
 import ReceivableActions from '@/components/ReceivableActions.tsx'
-import ReceivableList from '@/components/ReceivableList.tsx'
+import ReceivableTable from '@/components/ReceivableTable.tsx'
+import { SELLER_COLUMNS, SellerRow } from '@/components/ReceivableRows.tsx'
 import SellerPayout from '@/components/SellerPayout.tsx'
 import Steps from '@/components/Steps.tsx'
 import { stepState } from '@/lib/steps.ts'
@@ -461,45 +462,54 @@ function Seller({ wallet }: Props) {
         </TabsContent>
 
         <TabsContent value="existing" className="min-w-0">
-          <ReceivableList
+          <ReceivableTable
+            label="Your receivables"
             receivables={mine}
             isPending={isPending}
             isError={isError}
-            columns={2}
+            columns={SELLER_COLUMNS}
             empty={{
               title: 'No receivables yet',
               body: 'Create one from a signed contract in the Create tab. It appears here, ready to list for investors.',
             }}
-            extra={(receivable) => (
-              <>
-                <ListForm receivable={receivable} />
-                <SellerPayout
-                  receivable={receivable}
-                  wallet={wallet}
-                  balance={usdtBalance}
-                  allowance={allowance}
-                  now={now}
-                />
-                <ReceivableActions
-                  id={receivable.id}
-                  actions={
-                    canCancel(receivable)
-                      ? [
-                          {
-                            label: 'Cancel receivable',
-                            functionName: 'cancelReceivable',
-                            done: 'Cancelled. The document can back a new receivable.',
-                            tone: 'destructive',
-                            confirm: {
-                              title: `Cancel receivable #${receivable.id}?`,
-                              body: `${receivable.status === 'Listed' ? 'It comes off the marketplace. ' : ''}This can’t be undone, but you can create it again with the same PDF.`,
-                            },
-                          },
-                        ]
-                      : []
-                  }
-                />
-              </>
+            row={(receivable) => (
+              <SellerRow
+                key={receivable.id}
+                r={receivable}
+                now={now}
+                wallet={wallet}
+                manage={
+                  <>
+                    <ListForm receivable={receivable} />
+                    <SellerPayout
+                      receivable={receivable}
+                      wallet={wallet}
+                      balance={usdtBalance}
+                      allowance={allowance}
+                      now={now}
+                    />
+                    <ReceivableActions
+                      id={receivable.id}
+                      actions={
+                        canCancel(receivable)
+                          ? [
+                              {
+                                label: 'Cancel receivable',
+                                functionName: 'cancelReceivable',
+                                done: 'Cancelled. The document can back a new receivable.',
+                                tone: 'destructive',
+                                confirm: {
+                                  title: `Cancel receivable #${receivable.id}?`,
+                                  body: `${receivable.status === 'Listed' ? 'It comes off the marketplace. ' : ''}This can’t be undone, but you can create it again with the same PDF.`,
+                                },
+                              },
+                            ]
+                          : []
+                      }
+                    />
+                  </>
+                }
+              />
             )}
           />
         </TabsContent>
