@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
-import { BACKEND_URL } from '../backend.ts'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { BACKEND_URL } from '@/backend.ts'
+import { cn } from '@/lib/utils'
 
 const CHECK_EVERY_MS = 30_000
 // Long enough for a Cloud Functions cold start, which boots Nest first.
@@ -15,7 +17,8 @@ async function fetchHealth() {
   return health
 }
 
-function BackendStatus() {
+/** Whether the document service answers /health. Documents can't upload or open without it. */
+function BackendStatus({ className }: { className?: string }) {
   const health = useQuery({
     queryKey: ['backend-health'],
     queryFn: fetchHealth,
@@ -24,15 +27,48 @@ function BackendStatus() {
     retry: false,
   })
 
-  const label = !BACKEND_URL
+  const state = !BACKEND_URL
     ? 'not configured'
     : health.isPending
-      ? 'checking…'
+      ? 'checking'
       : health.isSuccess
         ? 'online'
         : 'offline'
 
-  return <span className="backend-status">Backend: {label}</span>
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span
+          className={cn(
+            'text-muted-foreground inline-flex h-8 items-center gap-2 rounded-md px-2 text-xs',
+            className,
+          )}
+          tabIndex={0}
+        >
+          <span
+            className={cn(
+              'size-2 rounded-full',
+              state === 'online' && 'bg-state-settled',
+              state === 'offline' && 'bg-state-defaulted',
+              state === 'checking' && 'bg-warning animate-pulse',
+              state === 'not configured' && 'bg-state-closed',
+            )}
+            aria-hidden
+          />
+          Documents {state}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>
+        {state === 'online'
+          ? 'The document service is up. Agreements can be uploaded and opened.'
+          : state === 'not configured'
+            ? 'VITE_BACKEND_URL is not set, so documents are unavailable.'
+            : state === 'checking'
+              ? 'Checking the document service…'
+              : "The document service isn't answering. Uploads and PDF links won't work."}
+      </TooltipContent>
+    </Tooltip>
+  )
 }
 
 export default BackendStatus

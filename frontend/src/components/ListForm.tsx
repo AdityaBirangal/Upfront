@@ -1,17 +1,23 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import type { FormEvent } from 'react'
+import { Store } from 'lucide-react'
 import { simulateContract, writeContract } from 'wagmi/actions'
-import { upfront } from '../contracts.ts'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { upfront } from '@/contracts.ts'
 import {
   WHOLE_NUMBER,
   canList,
   formatUsdt,
   parseDiscount,
+  returnPercent,
   unitPriceFor,
-} from '../receivables.ts'
-import type { Receivable } from '../receivables.ts'
-import { useTx } from '../tx.ts'
-import { config } from '../wagmi.ts'
+} from '@/receivables.ts'
+import type { Receivable } from '@/receivables.ts'
+import { useTx } from '@/tx.ts'
+import { config } from '@/wagmi.ts'
+import ErrorNote from './ErrorNote.tsx'
 import TxStatus from './TxStatus.tsx'
 
 type Props = {
@@ -27,6 +33,7 @@ function ListForm({ receivable }: Props) {
   const [cap, setCap] = useState('')
   const [error, setError] = useState('')
   const tx = useTx()
+  const id = useId()
 
   const listable = canList(receivable)
   if (!listable && tx.phase === 'idle') return null
@@ -68,52 +75,52 @@ function ListForm({ receivable }: Props) {
   }
 
   return (
-    <>
+    <div className="space-y-3">
       {listable && (
-        <form className="inline-form" onSubmit={list} noValidate>
-          <fieldset className="inline-form" disabled={tx.busy}>
-            <label className="field">
-              Discount (%)
-              <input
-                className="input"
+        <form onSubmit={list} noValidate className="space-y-3">
+          <p className="text-sm font-medium">List for investors</p>
+          <fieldset disabled={tx.busy} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+            <div className="grid gap-1.5">
+              <Label htmlFor={`${id}-discount`}>Discount (%)</Label>
+              <Input
+                id={`${id}-discount`}
                 value={discount}
                 onChange={(event) => setDiscount(event.target.value)}
                 inputMode="decimal"
                 placeholder="3"
                 autoComplete="off"
+                aria-invalid={Boolean(error) && discountBps === null}
               />
-            </label>
-            <label className="field">
-              Investor cap (units)
-              <input
-                className="input"
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor={`${id}-cap`}>Investor cap (units)</Label>
+              <Input
+                id={`${id}-cap`}
                 value={cap}
                 onChange={(event) => setCap(event.target.value)}
                 inputMode="numeric"
                 placeholder={total.toString()}
                 autoComplete="off"
               />
-            </label>
-            <button type="submit" className="button">
-              List for investors
-            </button>
+            </div>
+            <Button type="submit">
+              <Store />
+              {tx.busy ? 'Listing…' : 'List'}
+            </Button>
           </fieldset>
           {unitPrice !== null && (
-            <p className="field-wide preview">
-              Investors pay {formatUsdt(unitPrice)} USDT per unit. You receive{' '}
-              {formatUsdt(unitPrice * total)} USDT if all{' '}
-              {total.toLocaleString()} units sell, paid as each sale happens.
+            <p className="text-muted-foreground text-sm">
+              Investors pay <span className="text-foreground tabular font-medium">{formatUsdt(unitPrice)} USDT</span>{' '}
+              per unit for a <span className="text-yield font-medium">{returnPercent(unitPrice)}</span> return. You
+              receive <span className="text-foreground tabular font-medium">{formatUsdt(unitPrice * total)} USDT</span>{' '}
+              if all {total.toLocaleString()} units sell, paid as each sale happens.
             </p>
           )}
-          {error && (
-            <p className="field-wide form-error" role="alert">
-              {error}
-            </p>
-          )}
+          {error && <ErrorNote>{error}</ErrorNote>}
         </form>
       )}
       <TxStatus tx={tx} done="Listed. Investors can now buy units." />
-    </>
+    </div>
   )
 }
 
