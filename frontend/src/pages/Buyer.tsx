@@ -1,13 +1,15 @@
-import { Link } from 'react-router'
+import { ShieldCheck, ShieldX } from 'lucide-react'
+import { useState } from 'react'
 import { isAddressEqual } from 'viem'
 import type { Address } from 'viem'
-import ReceivableActions from '../components/ReceivableActions.tsx'
-import type { ReceivableAction } from '../components/ReceivableActions.tsx'
-import ReceivableList from '../components/ReceivableList.tsx'
-import { BACKEND_URL, documentUrl } from '../backend.ts'
-import { useReceivables } from '../chain.ts'
-import { canReject, canVerify } from '../receivables.ts'
-import type { Receivable } from '../receivables.ts'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import PageHeader from '@/components/PageHeader.tsx'
+import ReceivableActions from '@/components/ReceivableActions.tsx'
+import type { ReceivableAction } from '@/components/ReceivableActions.tsx'
+import ReceivableList from '@/components/ReceivableList.tsx'
+import { useReceivables } from '@/chain.ts'
+import { canReject, canVerify } from '@/receivables.ts'
+import type { Receivable } from '@/receivables.ts'
 
 type Props = {
   wallet: Address
@@ -18,67 +20,71 @@ function actionsFor(receivable: Receivable): ReceivableAction[] {
   if (canVerify(receivable)) {
     actions.push({
       label: 'Verify',
+      icon: ShieldCheck,
       functionName: 'verifyReceivable',
       done: 'Verified. Investors now see the Verified tag.',
-      confirm: `Verify receivable #${receivable.id}? You confirm that you owe this amount by the due date. The tag can't be removed.`,
+      tone: 'primary',
+      confirm: {
+        title: `Verify receivable #${receivable.id}?`,
+        body: 'You confirm that you owe this amount by the due date. The tag can’t be removed.',
+      },
     })
   }
   if (canReject(receivable)) {
     actions.push({
       label: 'Reject',
+      icon: ShieldX,
       functionName: 'rejectReceivable',
       done: 'Rejected.',
-      confirm: `Reject receivable #${receivable.id}? This closes it for good.`,
+      tone: 'destructive',
+      confirm: {
+        title: `Reject receivable #${receivable.id}?`,
+        body: 'This closes it for good.',
+      },
     })
   }
   return actions
 }
 
+const needsReview = (r: Receivable) => canVerify(r) || canReject(r)
+
 function Buyer({ wallet }: Props) {
   const { receivables, isPending, isError } = useReceivables()
-  const mine = receivables
-    .filter((r) => isAddressEqual(r.buyer, wallet))
-    .reverse()
+  const mine = receivables.filter((r) => isAddressEqual(r.buyer, wallet)).reverse()
+  const pending = mine.filter(needsReview)
+  const [tab, setTab] = useState<'review' | 'all'>('review')
+  const shown = tab === 'review' ? pending : mine
 
   return (
-    <main className="panel">
-      <Link to="/app" className="back-link">
-        ← Back
-      </Link>
-      <h1>Verify receivables</h1>
-      <p className="hint">
-        Receivables where this wallet is the buyer. Check the agreement, then
-        Verify to confirm you owe the amount: investors see a Verified tag.
-        Reject closes a receivable you don't recognise, as long as it isn't
-        verified and no units are sold.
-      </p>
-
+    <>
+      <PageHeader
+        title="Verify"
+        description="Receivables that name this wallet as the buyer. Open the agreement, then Verify to confirm you owe the amount, so investors see a Verified tag. Reject closes one you don’t recognise, as long as it isn’t verified and no units are sold."
+      />
+      <Tabs value={tab} onValueChange={(value) => setTab(value as 'review' | 'all')} className="mb-4">
+        <TabsList>
+          <TabsTrigger value="review">
+            Needs review <span className="text-muted-foreground tabular ml-1">{pending.length}</span>
+          </TabsTrigger>
+          <TabsTrigger value="all">
+            All <span className="text-muted-foreground tabular ml-1">{mine.length}</span>
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
       <ReceivableList
-        receivables={mine}
+        receivables={shown}
         isPending={isPending}
         isError={isError}
-        empty="No receivables name this wallet as the buyer."
-        extra={(receivable) => (
-          <>
-            {BACKEND_URL && (
-              <p>
-                <a
-                  href={documentUrl(receivable.docHash)}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Open agreement PDF
-                </a>
-              </p>
-            )}
-            <ReceivableActions
-              id={receivable.id}
-              actions={actionsFor(receivable)}
-            />
-          </>
-        )}
+        party="seller"
+        columns={2}
+        empty={
+          tab === 'review' && mine.length > 0
+            ? { title: 'Nothing to review', body: 'Every receivable naming this wallet has been handled.' }
+            : { title: 'No receivables name this wallet', body: 'When a seller names you as the buyer, it appears here for you to verify.' }
+        }
+        extra={(receivable) => <ReceivableActions id={receivable.id} actions={actionsFor(receivable)} />}
       />
-    </main>
+    </>
   )
 }
 

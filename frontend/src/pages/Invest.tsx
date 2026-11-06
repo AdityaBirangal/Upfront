@@ -1,30 +1,29 @@
-import { Link } from 'react-router'
+import { Briefcase, Store } from 'lucide-react'
+import { useState } from 'react'
 import { isAddressEqual } from 'viem'
 import type { Address } from 'viem'
 import { useReadContract, useReadContracts } from 'wagmi'
-import BuyForm from '../components/BuyForm.tsx'
-import ReceivableList from '../components/ReceivableList.tsx'
-import HoldingCard from '../components/HoldingCard.tsx'
-import { BACKEND_URL, documentUrl } from '../backend.ts'
-import { useNow } from '../useNow.ts'
-import {
-  useHolderPayments,
-  useInvestments,
-  useReceivables,
-} from '../chain.ts'
-import { upfront, usdt } from '../contracts.ts'
-import {
-  formatUsdt,
-  returnPercent,
-  timeToDue,
-  unitsLeft,
-} from '../receivables.ts'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import BuyForm from '@/components/BuyForm.tsx'
+import EmptyState from '@/components/EmptyState.tsx'
+import ErrorNote from '@/components/ErrorNote.tsx'
+import HoldingRow from '@/components/HoldingRow.tsx'
+import PageHeader from '@/components/PageHeader.tsx'
+import ReceivableList from '@/components/ReceivableList.tsx'
+import Usdt from '@/components/Usdt.tsx'
+import { useHolderPayments, useInvestments, useReceivables } from '@/chain.ts'
+import { upfront, usdt } from '@/contracts.ts'
+import { unitValue } from '@/receivables.ts'
+import { useNow } from '@/useNow.ts'
 
 type Props = {
   wallet: Address
 }
 
 function Invest({ wallet }: Props) {
+  const [tab, setTab] = useState<'market' | 'portfolio'>('market')
   const { receivables, isPending, isError } = useReceivables()
   const listed = receivables.filter((r) => r.status === 'Listed').reverse()
 
@@ -55,8 +54,7 @@ function Invest({ wallet }: Props) {
       .reduce((sum, investment) => sum + investment.paid, 0n)
 
   const payments = useHolderPayments({ holder: wallet })
-  const repaidFor = (id: bigint) =>
-    (payments.data ?? []).find((payment) => payment.id === id)
+  const repaidFor = (id: bigint) => (payments.data ?? []).find((payment) => payment.id === id)
   const now = useNow()
 
   // Sellers hold their own units until they sell, so those aren't investments. Settlement burns
@@ -65,100 +63,162 @@ function Invest({ wallet }: Props) {
     .flatMap((receivable, index) => {
       const units = balances.data?.[index] ?? 0n
       const repaid = repaidFor(receivable.id)
-      return (units > 0n || repaid) &&
-        !isAddressEqual(receivable.seller, wallet)
+      return (units > 0n || repaid) && !isAddressEqual(receivable.seller, wallet)
         ? [{ receivable, units, repaid }]
         : []
     })
     .reverse()
 
-  return (
-    <main className="panel">
-      <Link to="/app" className="back-link">
-        ← Back
-      </Link>
-      <h1>Invest</h1>
-      <p>
-        USDT balance:{' '}
-        {money.isPending ? (
-          '…'
-        ) : money.isError || usdtBalance === undefined ? (
-          <span className="form-error">couldn't read it from the chain.</span>
-        ) : (
-          <>
-            <strong>{formatUsdt(usdtBalance)} USDT</strong>
-            {usdtBalance === 0n && (
-              <span className="form-error">
-                {' '}
-                · This wallet has no USDT, so it can't buy units yet.
-              </span>
-            )}
-          </>
-        )}
-      </p>
+  const totals = holdings.reduce(
+    (sum, { receivable, units, repaid }) => {
+      const paid = paidFor(receivable.id)
+      sum.invested += paid
+      if (repaid) sum.realised += repaid.amount - paid
+      else if (receivable.status !== 'Defaulted') sum.expected += unitValue(units)
+      return sum
+    },
+    { invested: 0n, expected: 0n, realised: 0n },
+  )
 
-      <h2>Marketplace</h2>
-      <p className="hint">
-        Each unit pays 1 USDT when the seller repays, before the due date. You
-        pay less now, so the difference is your return.
-      </p>
-      <ReceivableList
-        receivables={listed}
-        isPending={isPending}
-        isError={isError}
-        empty="No receivables are listed right now."
-        extra={(receivable) => (
-          <>
-            <p>
-              <strong>{returnPercent(receivable.unitPrice)} return</strong> ·{' '}
-              {timeToDue(receivable.dueDate)} ·{' '}
-              {unitsLeft(receivable).toLocaleString()} units left · You hold{' '}
-              {held(receivable.id).toLocaleString()}
-            </p>
-            {BACKEND_URL && (
-              <p>
-                <a
-                  href={documentUrl(receivable.docHash)}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Open agreement PDF
-                </a>
-              </p>
-            )}
-            <BuyForm
-              receivable={receivable}
-              wallet={wallet}
-              held={held(receivable.id)}
-              balance={usdtBalance}
-              allowance={allowance}
-            />
-          </>
-        )}
+  const holdingsPending = isPending || (receivables.length > 0 && balances.isPending)
+
+  return (
+    <>
+      <PageHeader
+        title="Invest"
+        description="Buy units of listed receivables below face value. Each unit pays 1 USDT when the seller repays, before the due date, so the difference is your return."
+        actions={
+          <dl className="text-sm">
+            <dt className="text-muted-foreground text-xs">USDT balance</dt>
+            <dd className="font-medium">
+              {money.isPending ? (
+                '…'
+              ) : money.isError || usdtBalance === undefined ? (
+                <span className="text-destructive">Unavailable</span>
+              ) : (
+                <Usdt value={usdtBalance} />
+              )}
+            </dd>
+          </dl>
+        }
       />
 
-      <h2>Portfolio</h2>
-      {isPending || (receivables.length > 0 && balances.isPending) ? (
-        <p>Loading holdings…</p>
-      ) : balances.isError ? (
-        <p className="form-error">Couldn't read balances from the chain.</p>
-      ) : holdings.length === 0 ? (
-        <p>This wallet holds no units yet.</p>
-      ) : (
-        <ul className="receivable-list">
-          {holdings.map(({ receivable, units, repaid }) => (
-            <HoldingCard
-              key={receivable.id}
-              receivable={receivable}
-              units={units}
-              paid={investments.isSuccess ? paidFor(receivable.id) : undefined}
-              repaid={repaid}
-              now={now}
-            />
-          ))}
-        </ul>
+      {usdtBalance === 0n && (
+        <ErrorNote className="mb-4">This wallet has no USDT, so it can’t buy units yet.</ErrorNote>
       )}
-    </main>
+
+      <Tabs value={tab} onValueChange={(value) => setTab(value as 'market' | 'portfolio')}>
+        <TabsList className="mb-4">
+          <TabsTrigger value="market">
+            Marketplace <span className="text-muted-foreground tabular ml-1">{listed.length}</span>
+          </TabsTrigger>
+          <TabsTrigger value="portfolio">
+            Portfolio <span className="text-muted-foreground tabular ml-1">{holdings.length}</span>
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="market">
+          <ReceivableList
+            receivables={listed}
+            isPending={isPending}
+            isError={isError}
+            party="seller"
+            columns={2}
+            empty={{
+              title: 'Nothing is listed right now',
+              body: 'Listed receivables appear here as soon as a seller lists one.',
+            }}
+            extra={(receivable) => (
+              <BuyForm
+                receivable={receivable}
+                wallet={wallet}
+                held={held(receivable.id)}
+                balance={usdtBalance}
+                allowance={allowance}
+              />
+            )}
+          />
+        </TabsContent>
+
+        <TabsContent value="portfolio" className="space-y-4">
+          {holdingsPending ? (
+            <div className="space-y-2 rounded-xl border p-4" aria-busy aria-label="Loading">
+              <Skeleton className="h-9" />
+              <Skeleton className="h-9" />
+            </div>
+          ) : balances.isError ? (
+            <ErrorNote>Couldn’t read balances from the chain.</ErrorNote>
+          ) : holdings.length === 0 ? (
+            <EmptyState
+              icon={Briefcase}
+              title="No holdings yet"
+              action={
+                <button
+                  type="button"
+                  className="text-primary inline-flex items-center gap-1.5 text-sm font-medium hover:underline"
+                  onClick={() => setTab('market')}
+                >
+                  <Store className="size-4" aria-hidden />
+                  Browse the marketplace
+                </button>
+              }
+            >
+              Units you buy appear here with their expected payout and countdown.
+            </EmptyState>
+          ) : (
+            <>
+              <dl className="bg-card grid grid-cols-1 divide-y rounded-xl border sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+                <div className="px-5 py-4">
+                  <dt className="text-muted-foreground text-xs">Invested</dt>
+                  <dd className="mt-1 text-lg font-semibold">
+                    {investments.isSuccess ? <Usdt value={totals.invested} /> : '…'}
+                  </dd>
+                </div>
+                <div className="px-5 py-4">
+                  <dt className="text-muted-foreground text-xs">Expected payout</dt>
+                  <dd className="mt-1 text-lg font-semibold">
+                    <Usdt value={totals.expected} />
+                  </dd>
+                </div>
+                <div className="px-5 py-4">
+                  <dt className="text-muted-foreground text-xs">Profit realised</dt>
+                  <dd className="text-state-settled mt-1 text-lg font-semibold">
+                    {investments.isSuccess ? <Usdt value={totals.realised} signed /> : '…'}
+                  </dd>
+                </div>
+              </dl>
+              <div className="bg-card rounded-xl border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="pl-4">Receivable</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Units</TableHead>
+                      <TableHead className="text-right">Invested</TableHead>
+                      <TableHead className="text-right">Payout</TableHead>
+                      <TableHead className="text-right">Profit</TableHead>
+                      <TableHead className="pr-4 text-right">Due</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {holdings.map(({ receivable, units, repaid }) => (
+                      <HoldingRow
+                        key={receivable.id}
+                        receivable={receivable}
+                        units={units}
+                        paid={investments.isSuccess ? paidFor(receivable.id) : undefined}
+                        repaid={repaid}
+                        now={now}
+                      />
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
+          )}
+        </TabsContent>
+      </Tabs>
+    </>
   )
 }
 

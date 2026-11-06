@@ -70,3 +70,9 @@ export function explorerTxUrl(hash: Hex): string | null {
     ? `${chainDeployments.explorer}/tx/${hash}`
     : null
 }
+
+export function explorerAddressUrl(address: Address): string | null {
+  return chainDeployments?.explorer
+    ? `${chainDeployments.explorer}/address/${address}`
+    : null
+}
