@@ -29,10 +29,10 @@ const PLANS: { id: string; icon: LucideIcon; eyebrow: string; title: string; led
     id: 'kyc',
     icon: BadgeCheck,
     eyebrow: '03 · KYC / KYB',
-    title: 'Verified with World ID',
-    lede: 'Investors can already join with World ID. Next, sellers and clients verify too, so no wallet needs an admin to grant its role.',
-    stat: 'World ID',
-    statLabel: 'replaces manual approval',
+    title: 'Investors onboard themselves with World ID',
+    lede: 'An investor presents a passport credential through World ID. If it isn’t from an OFAC-sanctioned country, their wallet gets the Investor role on its own, and Upfront never sees the passport. Anyone who can’t pass that check can still be approved by an admin, and sellers and clients stay with business checks run by the admin.',
+    stat: 'Self-onboarding',
+    statLabel: 'for investors, with admin approval as the fallback',
   },
 ]
 
