@@ -43,7 +43,7 @@ contract DeployLocal is Script {
         console.log("Upfront:", address(upfront));
     }
 
-    function _wallet(uint32 index) private returns (address) {
+    function _wallet(uint32 index) private pure returns (address) {
         return vm.addr(vm.deriveKey(MNEMONIC, index));
     }
 }

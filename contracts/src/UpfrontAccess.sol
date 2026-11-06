@@ -7,7 +7,7 @@ import {AccessControlEnumerable} from "@openzeppelin/contracts/access/extensions
 /// @notice Records which wallets may act as Seller, Buyer, or Investor. Roles are managed with the
 /// standard `grantRole` and `revokeRole`, and enumerable so the UI can list members from the chain.
 contract UpfrontAccess is AccessControlEnumerable {
-    uint256 public constant VERSION = 50;
+    uint256 public constant VERSION = 60;
 
     bytes32 public constant SELLER_ROLE = keccak256("SELLER_ROLE");
     bytes32 public constant BUYER_ROLE = keccak256("BUYER_ROLE");

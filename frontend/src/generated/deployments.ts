@@ -35,6 +35,11 @@ export const deployments = {
         "access": "0x975EA3B186F15a5eCdee6fdC4e3924f167A84F05",
         "deployBlock": 12352555
       },
+      "6": {
+        "upfront": "0x50eD2278EBCAA43eE213596881157a80e5041BC9",
+        "access": "0x7f8dF0d47e0265Df7E1f8AF1d091757B193cECd2",
+        "deployBlock": 12355947
+      },
       "4.5": {
         "upfront": "0x16f1Dad004F58E77CCc961c711DEc82D1bb1116a",
         "access": "0xf86E710CAa4D6e21A6f1bAC164656ADE8Ed1C101",
@@ -68,6 +73,11 @@ export const deployments = {
         "deployBlock": 0
       },
       "5": {
+        "upfront": "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
+        "access": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+        "deployBlock": 0
+      },
+      "6": {
         "upfront": "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
         "access": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
         "deployBlock": 0

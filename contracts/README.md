@@ -30,3 +30,15 @@ forge script script/DeployLocal.s.sol --rpc-url http://127.0.0.1:8545 --broadcas
 ```
 
 Set `GRANT_ROLES=false` on that command to start with no roles, for testing the Admin page.
+
+Run the demo flow on the newest Whitechain Sepolia deployment, using the `upfront-*` keystores:
+
+```bash
+../scripts/demo-lifecycle.sh
+```
+
+Top up the demo wallets from Admin. It sends only what each wallet is short of:
+
+```bash
+forge script script/FundDemoWallets.s.sol --rpc-url whitechain_sepolia --account upfront-admin --broadcast
+```

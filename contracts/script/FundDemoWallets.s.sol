@@ -22,8 +22,8 @@ contract FundDemoWallets is Script {
         require(block.chainid == 1874, "Whitechain Sepolia only");
 
         vm.startBroadcast();
-        _topUp(SELLER, 0.05 ether, 0);
-        _topUp(BUYER, 0.05 ether, 20e6);
+        _topUp(SELLER, 0.05 ether, 11e6); // repays 10, and raises 9.70 first
+        _topUp(BUYER, 0.05 ether, 0);
         _topUp(INVESTOR_1, 0.05 ether, 12e6);
         _topUp(INVESTOR_2, 0.05 ether, 8e6);
         _topUp(OUTSIDER, 0.01 ether, 0);

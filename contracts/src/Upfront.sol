@@ -8,8 +8,7 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {UpfrontAccess} from "./UpfrontAccess.sol";
 
-/// @notice Lifecycle of a receivable. Final from V2, though later versions reach the later states.
-/// Verification isn't a step here: see `Receivable.verified`.
+/// @notice Lifecycle of a receivable. Verification isn't a step here: see `Receivable.verified`.
 enum Status {
     None,
     Created,
@@ -30,7 +29,7 @@ enum TransferBlock {
     OverCap
 }
 
-/// @notice Final from V2. Fields a version doesn't use yet stay zero.
+/// @notice One project agreement turned into units. Listing fields stay zero until it's listed.
 struct Receivable {
     address seller;
     address buyer;
@@ -49,11 +48,12 @@ struct Receivable {
 }
 
 /// @title Upfront
-/// @notice ERC-1155 where each receivable is one token ID and 1 unit pays 1 USDT after settlement.
+/// @notice ERC-1155 where each receivable is one token ID. The seller borrows by selling units at a
+/// discount, and repays 1 USDT per unit to whoever holds them when it settles.
 contract Upfront is ERC1155Supply, ReentrancyGuard {
     using EnumerableSet for EnumerableSet.AddressSet;
 
-    uint256 public constant VERSION = 50;
+    uint256 public constant VERSION = 60;
 
     uint256 private constant BPS = 10_000;
 
@@ -128,10 +128,10 @@ contract Upfront is ERC1155Supply, ReentrancyGuard {
         UNIT = 10 ** usdt_.decimals();
     }
 
-    /// @notice Creates a receivable owed by `buyer` and mints all its units to the caller.
-    /// @param buyer Wallet that owes the money. Must hold BUYER_ROLE.
-    /// @param faceValue Total owed in USDT base units, in whole units.
-    /// @param dueDate Unix seconds when payment is due.
+    /// @notice Creates a receivable and mints all its units to the caller, who is the seller.
+    /// @param buyer Client on the agreement, who can verify it. Must hold BUYER_ROLE.
+    /// @param faceValue Total to repay in USDT base units, in whole units.
+    /// @param dueDate Unix seconds. The seller must settle before this.
     /// @param docHash SHA-256 of the signed project agreement.
     /// @param ref Seller's own document number, for display.
     /// @return id The new token ID.
@@ -167,7 +167,7 @@ contract Upfront is ERC1155Supply, ReentrancyGuard {
         _mint(msg.sender, id, totalUnits, "");
     }
 
-    /// @notice Sets the Verified tag. Investors see it, but listing and investing don't require it.
+    /// @notice Lets the named buyer set the Verified tag. Investors see it, but listing and investing don't require it.
     /// @dev The tag can't be cleared, and verifying doesn't change the status.
     function verifyReceivable(uint256 id) external {
         Receivable storage r = _get(id);
@@ -205,7 +205,7 @@ contract Upfront is ERC1155Supply, ReentrancyGuard {
         emit ReceivableCancelled(id);
     }
 
-    /// @notice Offers a receivable's units at a discount. The buyer's verification isn't required.
+    /// @notice Offers a receivable's units at a discount. Verification isn't required.
     /// @param id The receivable.
     /// @param discountBps Percent below face value, in basis points.
     /// @param maxUnitsPerInvestor Most units one wallet can buy.
@@ -292,11 +292,14 @@ contract Upfront is ERC1155Supply, ReentrancyGuard {
     }
 
     /// @notice Everyone except the seller who currently holds units of a receivable.
+    /// @param id The receivable.
+    /// @return Their addresses, in no fixed order.
     function holdersOf(uint256 id) external view returns (address[] memory) {
         return _holders[id].values();
     }
 
     /// @notice Returns a receivable. Reverts if the id doesn't exist.
+    /// @param id The receivable.
     function getReceivable(uint256 id) external view returns (Receivable memory) {
         return _get(id);
     }
