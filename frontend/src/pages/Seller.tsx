@@ -3,7 +3,7 @@ import type { ChangeEvent, FormEvent } from 'react'
 import { Link } from 'react-router'
 import { getAddress, isAddressEqual } from 'viem'
 import type { Address, Hex } from 'viem'
-import { useReadContract } from 'wagmi'
+import { useReadContract, useReadContracts } from 'wagmi'
 import { readContract, simulateContract, writeContract } from 'wagmi/actions'
 import ListForm from '../components/ListForm.tsx'
 import ReceivableActions from '../components/ReceivableActions.tsx'
@@ -11,11 +11,12 @@ import ReceivableList from '../components/ReceivableList.tsx'
 import SellerPayout from '../components/SellerPayout.tsx'
 import TxStatus from '../components/TxStatus.tsx'
 import { BACKEND_URL, uploadDocument } from '../backend.ts'
-import { useClaims, useGracePeriod, useReceivables } from '../chain.ts'
-import { ROLE_IDS, access, upfront } from '../contracts.ts'
+import { useReceivables } from '../chain.ts'
+import { ROLE_IDS, access, upfront, usdt } from '../contracts.ts'
 import {
   WHOLE_NUMBER,
   canCancel,
+  formatUsdt,
   documentProblem,
   hashDocument,
 } from '../receivables.ts'
@@ -71,22 +72,15 @@ function Seller({ wallet }: Props) {
     .filter((r) => isAddressEqual(r.seller, wallet))
     .reverse()
   const now = useNow()
-  const grace = useGracePeriod()
-  const claims = useClaims({ holder: wallet })
-  const held = useReadContract({
-    ...upfront,
-    functionName: 'balanceOfBatch',
-    args: [mine.map(() => wallet), mine.map((r) => r.id)],
-    query: { enabled: mine.length > 0 },
+  // Settle pulls the repayment from this wallet, so it needs the balance and the approval.
+  const money = useReadContracts({
+    allowFailure: false,
+    contracts: [
+      { ...usdt, functionName: 'balanceOf', args: [wallet] },
+      { ...usdt, functionName: 'allowance', args: [wallet, upfront.address] },
+    ],
   })
-  const heldUnits = (id: bigint) => {
-    const index = mine.findIndex((r) => r.id === id)
-    return held.data?.[index]
-  }
-  const claimedFor = (id: bigint) =>
-    (claims.data ?? [])
-      .filter((claim) => claim.id === id)
-      .reduce((sum, claim) => sum + claim.amount, 0n)
+  const [usdtBalance, allowance] = money.data ?? []
   const busy = checking || upload === 'active' || tx.busy
 
   function selectDocument(event: ChangeEvent<HTMLInputElement>) {
@@ -355,6 +349,11 @@ function Seller({ wallet }: Props) {
       )}
 
       <h2>My receivables</h2>
+      <p className="hint">
+        Settle repays every investor 1 USDT per unit before the due date.
+        USDT balance:{' '}
+        {usdtBalance === undefined ? '…' : `${formatUsdt(usdtBalance)} USDT`}
+      </p>
       <ReceivableList
         receivables={mine}
         isPending={isPending}
@@ -365,10 +364,10 @@ function Seller({ wallet }: Props) {
             <ListForm receivable={receivable} />
             <SellerPayout
               receivable={receivable}
-              held={heldUnits(receivable.id)}
-              claimed={claimedFor(receivable.id)}
+              wallet={wallet}
+              balance={usdtBalance}
+              allowance={allowance}
               now={now}
-              grace={grace}
             />
             <ReceivableActions
               id={receivable.id}

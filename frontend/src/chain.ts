@@ -133,7 +133,7 @@ export function useInvestments(filter: { id?: bigint; investor?: Address }) {
   })
 }
 
-export type Claim = {
+export type HolderPayment = {
   id: bigint
   holder: Address
   units: bigint
@@ -141,21 +141,21 @@ export type Claim = {
   txHash: Hash
 }
 
-/** Every `claim` since deployment, optionally for one receivable or one holder. Oldest first. */
-export function useClaims(filter: { id?: bigint; holder?: Address }) {
+/** Every payment `settle` made to a holder, optionally for one receivable or one holder. */
+export function useHolderPayments(filter: { id?: bigint; holder?: Address }) {
   const client = usePublicClient({ chainId: upfront.chainId })
   const { id, holder } = filter
 
   return useQuery({
-    queryKey: ['claims', upfront.address, id?.toString(), holder],
+    queryKey: ['holderPayments', upfront.address, id?.toString(), holder],
     enabled: Boolean(client),
-    queryFn: async (): Promise<Claim[]> => {
+    queryFn: async (): Promise<HolderPayment[]> => {
       if (!client) return []
       const logs = await readInChunks(client, (fromBlock, toBlock) =>
         client.getContractEvents({
           address: upfront.address,
           abi: upfront.abi,
-          eventName: 'Claimed',
+          eventName: 'HolderPaid',
           args: { id, holder },
           fromBlock,
           toBlock,
@@ -170,10 +170,4 @@ export function useClaims(filter: { id?: bigint; holder?: Address }) {
       }))
     },
   })
-}
-
-/** Seconds after the due date before anyone can mark an unpaid receivable as defaulted. */
-export function useGracePeriod() {
-  const read = useReadContract({ ...upfront, functionName: 'gracePeriod' })
-  return read.data === undefined ? undefined : BigInt(read.data)
 }

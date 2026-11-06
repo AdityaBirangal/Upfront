@@ -1,22 +1,21 @@
 import { Link } from 'react-router'
+import type { Hash } from 'viem'
 import { explorerTxUrl } from '../contracts.ts'
-import { claimValue, formatUsdt } from '../receivables.ts'
+import { formatUsdt, unitValue } from '../receivables.ts'
 import type { Receivable } from '../receivables.ts'
 import DueCountdown from './DueCountdown.tsx'
-import ReceivableActions from './ReceivableActions.tsx'
 import StatusBadge from './StatusBadge.tsx'
 import VerifiedTag from './VerifiedTag.tsx'
 
 type Props = {
   receivable: Receivable
-  /** Units held now. Claiming burns them. */
+  /** Units held now. Settlement burns them. */
   units: bigint
   /** USDT this wallet paid in `invest`, or undefined while loading or unknown. */
   paid: bigint | undefined
-  /** USDT this wallet already claimed, and the transaction. */
-  claimed: { amount: bigint; txHash: `0x${string}` } | undefined
+  /** What `settle` paid this wallet, read from HolderPaid events. */
+  repaid: { units: bigint; amount: bigint; txHash: Hash } | undefined
   now: bigint
-  grace: bigint | undefined
 }
 
 function Signed({ value }: { value: bigint }) {
@@ -30,51 +29,27 @@ function Signed({ value }: { value: bigint }) {
   )
 }
 
-/** One portfolio row: what was paid, and what happened at the due date. */
-function HoldingCard({ receivable, units, paid, claimed, now, grace }: Props) {
-  const payout = claimValue(units)
-  const claimUrl = claimed ? explorerTxUrl(claimed.txHash) : null
+/** One portfolio row: what was paid, and what happened at settlement. */
+function HoldingCard({ receivable, units, paid, repaid, now }: Props) {
+  const repaidUrl = repaid ? explorerTxUrl(repaid.txHash) : null
 
   let outcome
-  if (receivable.status === 'Settled' && units > 0n) {
-    outcome = (
-      <>
-        <p>
-          The buyer paid. Claim {formatUsdt(payout)} USDT
-          {paid !== undefined && (
-            <>
-              {' '}
-              · Profit <Signed value={payout - paid} />
-            </>
-          )}
-        </p>
-        <ReceivableActions
-          id={receivable.id}
-          actions={[
-            {
-              label: `Claim ${formatUsdt(payout)} USDT`,
-              functionName: 'claim',
-              done: `Claimed ${formatUsdt(payout)} USDT.`,
-            },
-          ]}
-        />
-      </>
-    )
-  } else if (claimed) {
+  if (repaid) {
     outcome = (
       <p>
-        Claimed {formatUsdt(claimed.amount)} USDT
+        <span className="tag ok">Paid</span> The seller repaid{' '}
+        {formatUsdt(repaid.amount)} USDT to this wallet
         {paid !== undefined && (
           <>
             {' '}
-            · Profit <Signed value={claimed.amount - paid} />
+            · Profit <Signed value={repaid.amount - paid} />
           </>
         )}
-        {claimUrl && (
+        {repaidUrl && (
           <>
             {' '}
             ·{' '}
-            <a href={claimUrl} target="_blank" rel="noreferrer">
+            <a href={repaidUrl} target="_blank" rel="noreferrer">
               View on explorer
             </a>
           </>
@@ -84,7 +59,7 @@ function HoldingCard({ receivable, units, paid, claimed, now, grace }: Props) {
   } else if (receivable.status === 'Defaulted') {
     outcome = (
       <p className="form-error">
-        Defaulted: the buyer didn't pay by the end of the grace period.
+        Defaulted: the seller didn't repay by the due date.
         {paid !== undefined && (
           <>
             {' '}
@@ -94,6 +69,7 @@ function HoldingCard({ receivable, units, paid, claimed, now, grace }: Props) {
       </p>
     )
   } else {
+    const payout = unitValue(units)
     outcome = (
       <>
         <p>
@@ -105,13 +81,13 @@ function HoldingCard({ receivable, units, paid, claimed, now, grace }: Props) {
             </>
           )}
         </p>
-        <DueCountdown receivable={receivable} now={now} grace={grace} />
+        <DueCountdown receivable={receivable} now={now} />
       </>
     )
   }
 
-  // Claimed units are burned, so show the units that were claimed instead.
-  const shownUnits = units > 0n ? units : (claimed?.amount ?? 0n) / claimValue(1n)
+  // Settlement burns the units, so show the units that were repaid instead.
+  const shownUnits = units > 0n ? units : (repaid?.units ?? 0n)
 
   return (
     <li className="receivable">
@@ -126,7 +102,7 @@ function HoldingCard({ receivable, units, paid, claimed, now, grace }: Props) {
       </div>
       <p>
         {shownUnits.toLocaleString()} {shownUnits === 1n ? 'unit' : 'units'} ·
-        Paid {paid === undefined ? '…' : `${formatUsdt(paid)} USDT`}
+        Invested {paid === undefined ? '…' : `${formatUsdt(paid)} USDT`}
       </p>
       {outcome}
       <p>

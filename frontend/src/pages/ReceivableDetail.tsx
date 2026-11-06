@@ -5,7 +5,6 @@ import Funding from '../components/Funding.tsx'
 import Payment from '../components/Payment.tsx'
 import StatusBadge from '../components/StatusBadge.tsx'
 import VerifiedTag from '../components/VerifiedTag.tsx'
-import { useGracePeriod } from '../chain.ts'
 import { upfront } from '../contracts.ts'
 import {
   formatDate,
@@ -21,7 +20,6 @@ const ID = /^[1-9]\d*$/
 function ReceivableDetail() {
   const { id = '' } = useParams()
   const isValidId = ID.test(id)
-  const grace = useGracePeriod()
   const read = useReadContract({
     ...upfront,
     functionName: 'getReceivable',
@@ -91,7 +89,7 @@ function ReceivableDetail() {
           r.status === 'Listed' ||
           r.status === 'Funded' ||
           r.status === 'Settled' ||
-          r.status === 'Defaulted') && <Payment receivable={r} grace={grace} />}
+          r.status === 'Defaulted') && <Payment receivable={r} />}
       </>
     )
   }
