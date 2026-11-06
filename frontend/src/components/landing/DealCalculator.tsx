@@ -7,6 +7,8 @@ const VALUES = [
   { v: 100_000_000, label: '$100M' },
 ]
 const TERMS = [3, 6, 12]
+/** Upfront's fee on the money raised, paid by the seller. Planned, not in the contracts yet. */
+const FEE_RATE = 0.005
 
 const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
 const pct = (n: number) => `${n.toFixed(2)}%`
@@ -59,16 +61,18 @@ function Line({ label, value, tone, strong }: { label: string; value: string; to
 }
 
 /**
- * Model a deal: contract value, discount and term in; what the business gets today and what
- * investors earn out. Every unit repays 1 USDT, so the discount is the whole return.
+ * Model a deal: contract value, discount and term in; what the business gets today after
+ * Upfront's fee, and what investors earn out. Every unit repays 1 USDT, so the discount is the whole return.
  */
 function DealCalculator({ className }: { className?: string }) {
   const [value, setValue] = useState(100_000_000)
   const [discount, setDiscount] = useState(10)
   const [term, setTerm] = useState(12)
 
-  const today = value * (1 - discount / 100)
-  const profit = value - today
+  const raised = value * (1 - discount / 100)
+  const fee = raised * FEE_RATE
+  const today = raised - fee
+  const profit = value - raised
   const ret = (discount / (100 - discount)) * 100
   const yearly = (ret * 12) / term
   const unitPrice = 1 - discount / 100
@@ -110,8 +114,8 @@ function DealCalculator({ className }: { className?: string }) {
             {usd.format(today)}
           </span>
           <span className="text-muted-foreground text-sm">
-            in USDT, as investors buy units at <span className="text-foreground tabular font-medium">{unitPrice.toFixed(3)}</span>{' '}
-            each
+            in USDT, after the 0.5% Upfront fee, as investors buy units at{' '}
+            <span className="text-foreground tabular font-medium">{unitPrice.toFixed(3)}</span> each
           </span>
         </div>
 
@@ -121,15 +125,20 @@ function DealCalculator({ className }: { className?: string }) {
           <div
             className="flex h-3 gap-1 overflow-hidden rounded-full"
             role="img"
-            aria-label={`Of the ${usd.format(value)} repayment, ${100 - discount}% goes to the business today and ${discount}% is the investors' profit at the due date`}
+            aria-label={`Of the ${usd.format(value)} repayment, ${pct((today / value) * 100)} goes to the business today, ${pct((fee / value) * 100)} is the Upfront fee, and ${pct(discount)} is the investors' profit at the due date`}
           >
-            <span className="bg-primary rounded-full transition-[flex-grow] duration-300" style={{ flexGrow: 100 - discount }} />
-            <span className="bg-yield min-w-1.5 rounded-full transition-[flex-grow] duration-300" style={{ flexGrow: discount }} />
+            <span className="bg-primary rounded-full transition-[flex-grow] duration-300" style={{ flexGrow: today }} />
+            <span className="bg-foreground/40 min-w-1.5 rounded-full transition-[flex-grow] duration-300" style={{ flexGrow: fee }} />
+            <span className="bg-yield min-w-1.5 rounded-full transition-[flex-grow] duration-300" style={{ flexGrow: profit }} />
           </div>
-          <div className="text-muted-foreground flex justify-between gap-4 text-xs">
+          <div className="text-muted-foreground flex flex-wrap justify-between gap-x-4 gap-y-1 text-xs">
             <span className="flex items-center gap-1.5">
               <span className="bg-primary size-2 rounded-full" aria-hidden />
-              Business today, {pct(100 - discount)}
+              Business today, {pct((today / value) * 100)}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="bg-foreground/40 size-2 rounded-full" aria-hidden />
+              Upfront fee, {pct((fee / value) * 100)}
             </span>
             <span className="flex items-center gap-1.5">
               <span className="bg-yield size-2 rounded-full" aria-hidden />
@@ -142,8 +151,11 @@ function DealCalculator({ className }: { className?: string }) {
           <Line label={`Repaid to holders in ${term} months`} value={usd.format(value)} strong />
           <Line label="Investors earn" value={`+${usd.format(profit)}`} tone="text-yield" strong />
           <Line label="Return on what they paid" value={pct(ret)} tone="text-yield" />
-          <Line label="Simple yearly rate" value={`≈ ${pct(yearly)}`} />        </dl>
-        <p className="text-muted-foreground -mt-4 text-xs">Investors carry the risk that the seller doesn’t repay.</p>
+          <Line label="Simple yearly rate" value={`≈ ${pct(yearly)}`} />
+          <Line label="Raised from investors" value={usd.format(raised)} />
+          <Line label="Upfront fee (0.5% of raised, paid by the seller)" value={`−${usd.format(fee)}`} tone="text-primary" />
+        </dl>
+        <p className="text-muted-foreground -mt-4 text-xs">Investors carry the risk that the seller doesn’t repay. The fee is planned and not in the contracts yet.</p>
       </div>
     </div>
   )

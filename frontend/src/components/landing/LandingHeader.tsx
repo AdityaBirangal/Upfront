@@ -1,5 +1,7 @@
 import { ArrowRight } from 'lucide-react'
 import { Link, NavLink } from 'react-router'
+import GitHubIcon from '@/components/GitHubIcon.tsx'
+import { REPO_URL } from '@/repo.ts'
 import { Button } from '@/components/ui/button'
 import { Logo } from '@/components/layout/SideNav.tsx'
 import ThemeToggle from '@/components/ThemeToggle.tsx'
@@ -9,9 +11,6 @@ import { cn } from '@/lib/utils'
 /** Landing sections. Absolute, so they work from other public pages too. */
 const SECTIONS = [
   { href: '/#how', label: 'How it works' },
-  { href: '/#returns', label: 'Returns' },
-  { href: '/#rules', label: 'Rules' },
-  { href: '/#live', label: 'Live data' },
 ]
 
 const LINK =
@@ -48,8 +47,16 @@ function LandingHeader() {
           <NavLink to="/future" className={({ isActive }) => cn(LINK, isActive && 'text-foreground')}>
             Future scope
           </NavLink>
+          <NavLink to="/contracts" className={({ isActive }) => cn(LINK, isActive && 'text-foreground')}>
+            Contracts
+          </NavLink>
         </nav>
         <div className="ml-auto flex items-center gap-2">
+          <Button size="icon" variant="ghost" asChild>
+            <a href={REPO_URL} target="_blank" rel="noreferrer" aria-label="Source code on GitHub">
+              <GitHubIcon />
+            </a>
+          </Button>
           <ThemeToggle />
           <Button size="sm" asChild>
             <Link to="/app">

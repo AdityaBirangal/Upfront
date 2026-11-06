@@ -4,6 +4,7 @@ import AppShell from './components/layout/AppShell.tsx'
 import AdminRoles from './pages/AdminRoles.tsx'
 import Business from './pages/Business.tsx'
 import Buyer from './pages/Buyer.tsx'
+import Contracts from './pages/Contracts.tsx'
 import FutureScope from './pages/FutureScope.tsx'
 import Home from './pages/Home.tsx'
 import Invest from './pages/Invest.tsx'
@@ -17,6 +18,7 @@ function App() {
       <Route path="/" element={<Home />} />
       <Route path="/business" element={<Business />} />
       <Route path="/future" element={<FutureScope />} />
+      <Route path="/contracts" element={<Contracts />} />
       <Route path="/app" element={<AppShell />}>
         <Route index element={<Overview />} />
         {/* Anyone can view roles. Only admin wallets can change them. */}

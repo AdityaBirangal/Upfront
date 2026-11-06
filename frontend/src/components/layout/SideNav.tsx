@@ -1,3 +1,4 @@
+import WhitechainLogo from '@/components/WhitechainLogo.tsx'
 import { NavLink } from 'react-router'
 import { useConnection } from 'wagmi'
 import { useRoles } from '@/chain.ts'
@@ -75,6 +76,7 @@ export function NetworkFooter() {
     <div className="text-muted-foreground space-y-1 text-xs">
       <p className="flex items-center gap-2">
         <span className="bg-state-settled size-1.5 rounded-full" aria-hidden />
+        <WhitechainLogo className="size-3.5" />
         {targetChain.name}
       </p>
       <p>

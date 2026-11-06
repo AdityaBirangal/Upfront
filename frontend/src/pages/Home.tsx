@@ -3,6 +3,7 @@ import type { LucideIcon } from 'lucide-react'
 import { useEffect } from 'react'
 import { Link, useLocation } from 'react-router'
 import { Button } from '@/components/ui/button'
+import WhitechainLogo from '@/components/WhitechainLogo.tsx'
 import WorldLogo from '@/components/WorldLogo.tsx'
 import SiteFooter from '@/components/layout/SiteFooter.tsx'
 import Compare from '@/components/landing/Compare.tsx'
@@ -94,6 +95,7 @@ function Home() {
                 className="bg-card/70 text-muted-foreground hover:text-foreground inline-flex items-center gap-2 rounded-full border py-1 pr-3 pl-2.5 text-xs font-medium shadow-xs backdrop-blur-md transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
               >
                 <LiveDot />
+                <WhitechainLogo className="size-4" />
                 Live on Whitechain Sepolia
                 <span className="bg-border h-3 w-px" aria-hidden />
                 <span className="text-foreground">See the numbers</span>
@@ -200,7 +202,7 @@ function Home() {
               <div className="flex flex-col items-start gap-5">
                 <div className="flex flex-wrap items-center gap-3">
                   <WorldLogo wordmark className="h-7 w-auto" />
-                  <span className="bg-band-foreground/15 rounded-full px-2.5 py-1 text-xs font-medium">Next</span>
+                  <span className="bg-band-foreground/15 rounded-full px-2.5 py-1 text-xs font-medium">Upcoming</span>
                 </div>
                 <h3 className="flex items-start gap-3 text-3xl leading-[1.08] font-semibold tracking-[-0.035em] text-balance md:text-5xl">
                   <ShieldCheck className="mt-1 size-8 shrink-0 md:size-11" aria-hidden />
@@ -300,7 +302,10 @@ function Home() {
           <div className="bg-band text-band-foreground relative overflow-hidden rounded-3xl px-6 py-14 md:px-14 md:py-20">
             <Guilloche className="pointer-events-none absolute -right-40 -bottom-56 size-[40rem] opacity-[0.18] md:-right-24" />
             <div className="relative flex max-w-2xl flex-col items-start gap-6">
-              <Eyebrow className="text-band-foreground/70">Testnet demo</Eyebrow>
+              <div className="flex items-center gap-3">
+                <WhitechainLogo className="size-7" />
+                <Eyebrow className="text-band-foreground/70">Testnet demo</Eyebrow>
+              </div>
               <h2 className="text-3xl leading-[1.05] font-semibold tracking-[-0.035em] text-balance md:text-5xl">
                 Run a deal end to end on Whitechain Sepolia.
               </h2>
