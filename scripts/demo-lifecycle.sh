@@ -50,10 +50,10 @@ send seller "$SELLER" create "$UP" \
   'createReceivable(address,uint256,uint64,bytes32,string)' "$BUYER" 10000000 "$DUE" "$DOC" "$REF"
 ID=$(cast call "$UP" 'receivableCount()(uint256)' --rpc-url "$RPC")
 send buyer "$BUYER" verify "$UP" 'verifyReceivable(uint256)' "$ID"
-send seller "$SELLER" list "$UP" 'listReceivable(uint256,uint16,uint256)' "$ID" 300 6
-send investor1 "$INVESTOR1" approve-investor1 "$USDT" 'approve(address,uint256)' "$UP" 5820000
+send seller "$SELLER" list "$UP" 'listReceivable(uint256,uint16,uint256)' "$ID" 1000 6
+send investor1 "$INVESTOR1" approve-investor1 "$USDT" 'approve(address,uint256)' "$UP" 5400000
 send investor1 "$INVESTOR1" invest-investor1 "$UP" 'invest(uint256,uint256)' "$ID" 6
-send investor2 "$INVESTOR2" approve-investor2 "$USDT" 'approve(address,uint256)' "$UP" 3880000
+send investor2 "$INVESTOR2" approve-investor2 "$USDT" 'approve(address,uint256)' "$UP" 3600000
 send investor2 "$INVESTOR2" invest-investor2 "$UP" 'invest(uint256,uint256)' "$ID" 4
 TRANSFER='safeTransferFrom(address,address,uint256,uint256,bytes)'
 echo "transfer to the outsider, simulated only: must be refused"

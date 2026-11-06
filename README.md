@@ -16,6 +16,27 @@ ABC Builder wins a $100M data centre project from a global tech company. Before 
 money for land, materials, machinery, and thousands of workers. Banks are slow, want collateral, and
 depend on a few lenders. Ordinary investors can't take part at all.
 
+## Business case
+
+**Customer:** businesses anywhere that have won a large contract from a strong client and must pay for
+the work before they get paid. We'd start with construction and data centre projects.
+
+**Why they'd use Upfront:** they need money before the client pays. Upfront lets them raise it against
+the signed contract, from many investors, in minutes once units sell, without pledging collateral.
+
+**Why investors would use it:** they can buy small units of a deal they could never reach before, read
+the agreement, see whether the client verified it, and resell to other approved investors.
+
+**How Upfront earns:** a planned fee of 0.5% of the money raised, paid by the seller when a receivable is
+funded. On a $90M raise, that's $450,000. The fee isn't in the smart contracts yet.
+
+**Why this market is real:** selling receivables is already a large, proven business.
+[Global factoring passed €4 trillion in 2025](https://bcrpub.com/?p=152600), and India's RBI-regulated
+TReDS platforms let smaller businesses sell invoices once the buyer has accepted them. Upfront applies
+that idea to large project contracts, with onchain settlement and resale between approved investors.
+
+**Future scope:** client-paid escrow, milestone payments, and real KYB.
+
 ## How it works
 
 1. **Seller** (the builder) uploads the signed agreement. The file stays offchain, and its SHA-256 hash
@@ -31,8 +52,8 @@ An **Admin** approves who can take part, but can't move funds or change an exist
 | | The pitch | Testnet demo |
 |---|---|---|
 | Repaid by the due date | $100,000,000 | 10.00 USDT = 10 units |
-| Investors pay the builder today (3% discount) | $97,000,000 | 9.70 USDT |
-| Investors' profit | $3,000,000 | 0.30 USDT |
+| Investors pay the builder today (10% discount) | $90,000,000 | 9.00 USDT |
+| Investors' profit | $10,000,000 | 1.00 USDT |
 
 ```mermaid
 flowchart LR
@@ -66,7 +87,7 @@ can.
 | `UpfrontAccess` | [`0x7f8dF0d47e0265Df7E1f8AF1d091757B193cECd2`](https://explorer.testnet.whitechain.io/address/0x7f8dF0d47e0265Df7E1f8AF1d091757B193cECd2) |
 | `Upfront` | [`0x50eD2278EBCAA43eE213596881157a80e5041BC9`](https://explorer.testnet.whitechain.io/address/0x50eD2278EBCAA43eE213596881157a80e5041BC9) |
 
-**USDT settlement:** [one transaction paying both investors](https://explorer.testnet.whitechain.io/tx/0x54ec787e22d5c058def448bec01c57bfe7ccb9c50362ae54b8a94c6b079ca5b0).
+**USDT settlement:** [one transaction paying both investors](https://explorer.testnet.whitechain.io/tx/0x43cbea02dd197d9293a21e2b5e677a84eac77a141ea746a6e47776e1c728f072).
 Every step of that run is linked in [`DEMO_TXS.md`](DEMO_TXS.md).
 
 ## Rules enforced by the smart contracts
@@ -146,3 +167,7 @@ USDT when we did it.
 ## Team
 
 Aditya Birangal and Niranjan Girhe.
+
+## License
+
+[MIT](LICENSE)

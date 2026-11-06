@@ -3,6 +3,29 @@
 Real transactions on Whitechain Sepolia (chain ID 1874), using real test USDT, on the final deployment
 of [`Upfront`](https://explorer.testnet.whitechain.io/address/0x50ed2278ebcaa43ee213596881157a80e5041bc9).
 
+Receivable #5 has a face value of 10 USDT, verified by the buyer, with two investors at a 10% discount.
+They paid 9.00 USDT and received 10.00 USDT. It ended Settled, and the smart contract holds no USDT.
+
+Before the real transfer, a transfer from Investor 1 to the Outsider was simulated and refused, so no
+transaction exists for it. Settlement then paid whoever held the units.
+
+| Step | Wallet | Result | Transaction |
+|---|---|---|---|
+| Create | Seller | 10 units minted to the seller | [`0x14609b41…`](https://explorer.testnet.whitechain.io/tx/0x14609b410abcf5da2924ea7c2ec6f9af94bb75c162c5b2cb6c753b8295e88f64) |
+| Verify | Buyer | Verified tag set | [`0xc98ad067…`](https://explorer.testnet.whitechain.io/tx/0xc98ad067733550d855d8bd9be8c97b8f58aca246f73f053ceef9b0b696058b82) |
+| List | Seller | 0.90 USDT per unit (10% discount), investor cap 6 | [`0x6d8b1a2a…`](https://explorer.testnet.whitechain.io/tx/0x6d8b1a2ade872bb25fc19b602e9523695bf63fedbf82db213cf4dbd1499ff9cb) |
+| Approve | Investor 1 | 5.40 USDT allowance | [`0x6944eb04…`](https://explorer.testnet.whitechain.io/tx/0x6944eb04d6cc9d74e5bed16bf59cc1d94d1f74c2411b06c3685827d3be2d312a) |
+| **Invest** | Investor 1 | **5.40 USDT to the seller and 6 units to the investor, in one transaction** | [`0x97ebf109…`](https://explorer.testnet.whitechain.io/tx/0x97ebf109a48e655c87444629e5fa6b66487207e3cd9ba17cf04507d5e61965fa) |
+| Approve | Investor 2 | 3.60 USDT allowance | [`0x60ad8ed0…`](https://explorer.testnet.whitechain.io/tx/0x60ad8ed0d4e009d90302f14e599ea6b4b1c42fb71b143200397684e84e9136e9) |
+| **Invest** | Investor 2 | **3.60 USDT to the seller and 4 units to the investor. Status becomes Funded** | [`0x9a3823ce…`](https://explorer.testnet.whitechain.io/tx/0x9a3823cee572eee0ec09d4d17c0248ce95d2522e389384d336bb18e46b97a4b3) |
+| **Transfer** | Investor 1 | **2 units to Investor 2, allowed by the transfer rules** | [`0x3dd7390f…`](https://explorer.testnet.whitechain.io/tx/0x3dd7390fa67cee6e8dad68c41898d1d416a04fd9a4ddafd9d0fcf3e290ca7604) |
+| Approve | Seller | 10 USDT allowance | [`0xaa423bec…`](https://explorer.testnet.whitechain.io/tx/0xaa423bec98c3423a03687eed17bced85c36b929db25ad828ad2dfd3863b5a2ed) |
+| **Settle** | Seller | **One transaction pays 4 USDT to Investor 1 and 6 USDT to Investor 2, the new holder of 2 units** | [`0x43cbea02…`](https://explorer.testnet.whitechain.io/tx/0x43cbea02dd197d9293a21e2b5e677a84eac77a141ea746a6e47776e1c728f072) |
+
+## Earlier run at a 3% discount
+
+The same flow on the same deployment, before we moved the example deal to 10%.
+
 Receivable #1 has a face value of 10 USDT, verified by the buyer, with two investors at a 3% discount.
 It ended Settled, and the smart contract never held any USDT.
 
