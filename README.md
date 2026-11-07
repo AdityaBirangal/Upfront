@@ -1,3 +1,5 @@
+![Upfront: big contracts shouldn't wait for big banks. Built at ETHGlobal with Whitechain and World ID.](ethglobal/upfront-cover-1920x1080.png)
+
 # Upfront
 
 **Big contracts shouldn't wait for big banks.**
@@ -7,7 +9,7 @@ its future repayment to investors at a discount, and gets USDT today. When it re
 pays every investor.
 
 - **Live app:** https://upfront.web.app
-- **Demo video:** VIDEO_LINK
+- **Demo video:** [Watch on Google Drive](https://drive.google.com/file/d/1qkSEm6ibCWdTZC_3Mtkfa_0pdVyxUwQd/view?usp=sharing)
 - **Built at:** ETHGlobal Mumbai 2026, for Whitechain Tokenize and World ID
 
 ## The problem
@@ -157,7 +159,7 @@ only add investors through `join` and remove wallets that joined through it, and
 | Buyer verification | Only the named buyer can set the Verified tag, and it can't be undone |
 
 Every transfer passes through one check in `_update`, so batches and approved operators follow the same
-rules. The tests cover 100% of lines in `Upfront` and `UpfrontAccess`.
+rules. The tests cover 100% of lines in `Upfront`, `UpfrontAccess`, and `InvestorGate`.
 
 ## What the Admin can and can't do
 

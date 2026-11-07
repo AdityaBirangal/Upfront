@@ -25,7 +25,7 @@ transaction exists for it. Settlement then paid whoever held the units.
 ## World ID join
 
 World ID's simulator, so these are staging proofs, not real humans. No Admin was involved in the joins.
-These ran on our [first gate](https://explorer.testnet.whitechain.io/address/0x5d008711c2301AE2C1cC45c4667971db02AD5292). We then replaced it
+The first joins ran on our [first gate](https://explorer.testnet.whitechain.io/address/0x5d008711c2301AE2C1cC45c4667971db02AD5292). We then replaced it
 with the [current gate](https://explorer.testnet.whitechain.io/address/0x63152Da7dd72fc81bfB65d36f75D29f7Dd6f37B9), which adds an Admin reset
 so the demo can run again, and removed the first gate's admin role.
 
@@ -36,6 +36,8 @@ so the demo can run again, and removed the first gate's admin role.
 | Refused | Test B, same human | Refused before sending, so no transaction exists | None |
 | **Join, new action** | Test C | **A new action name gave a new nullifier, so a new wallet joined** | [`0x95427ea3…`](https://explorer.testnet.whitechain.io/tx/0x95427ea337a63efb75a09e0cc2d8133554b411c26ce90264d9601ee2b98304bf) |
 | Gate replaced | Admin | [New gate deployed](https://explorer.testnet.whitechain.io/tx/0x288ab23c2254a975b873f847c1f8107ac8151b0b5c20946331352b76d72ff957), and the first gate and its two wallets revoked | [`0xfd3fbe2d…`](https://explorer.testnet.whitechain.io/tx/0xfd3fbe2d1a181a722c526f4f226ed9eec7b2198cac6172a926a1dc247688acc4) |
+| Reset | Admin | Current gate cleared so the demo can run again | [`0xfc7f5208…`](https://explorer.testnet.whitechain.io/tx/0xfc7f5208286e90cac403069a0c1f2e121592eabb235f57c13f58ec715b5be4b4) |
+| **Join, current gate** | `0x5218F17e…` | **Verified with World ID on the current gate, and the wallet got the Investor role** | [`0x311f3044…`](https://explorer.testnet.whitechain.io/tx/0x311f3044f2b4185d5cf562ef129f4319c6472aa70e1b0c77ff751501b0c99243) |
 
 ## Earlier run at a 3% discount
 

@@ -25,3 +25,4 @@ A few honest notes from building Upfront on Whitechain Sepolia.
 - The `eth_getLogs` range limit on the public RPC.
 - Whether the testnet USDT needs a zero allowance first. We had to test this ourselves.
 - The testnet page says no third-party endpoint serves the network, but Ankr offers one.
+\
